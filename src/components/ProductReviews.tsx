@@ -17,6 +17,7 @@ export function ProductReviews({ id }: { id: string }) {
   const [reviews, setReviews] = useState<Review[]>([]),
     [page, setPage] = useState(1),
     [pages, setPages] = useState(1),
+    [resolvedPage, setResolvedPage] = useState(1),
     [total, setTotal] = useState(0),
     [sort, setSort] = useState("recent"),
     [photos, setPhotos] = useState(false),
@@ -28,7 +29,7 @@ export function ProductReviews({ id }: { id: string }) {
     api
       .request<{
         reviews: Review[];
-        pagination: { total: number; totalPages: number };
+        pagination: { page: number; total: number; totalPages: number };
       }>(
         "/reviews/products/" +
           encodeURIComponent(id) +
@@ -46,6 +47,7 @@ export function ProductReviews({ id }: { id: string }) {
         if (!controller.signal.aborted) {
           setReviews(r.reviews);
           setPages(r.pagination.totalPages);
+          setResolvedPage(r.pagination.page);
           setTotal(r.pagination.total);
         }
       })
@@ -131,22 +133,22 @@ export function ProductReviews({ id }: { id: string }) {
           <Button
             title="Previous reviews"
             outline
-            disabled={page <= 1}
+            disabled={resolvedPage <= 1}
             onPress={() => {
               reset();
-              setPage((x) => x - 1);
+              setPage(resolvedPage - 1);
             }}
           />
           <Text style={s.muted}>
-            {page} / {pages}
+            {resolvedPage} / {pages}
           </Text>
           <Button
             title="Next reviews"
             outline
-            disabled={page >= pages}
+            disabled={resolvedPage >= pages}
             onPress={() => {
               reset();
-              setPage((x) => x + 1);
+              setPage(resolvedPage + 1);
             }}
           />
         </View>

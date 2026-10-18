@@ -1,4 +1,4 @@
-import type { Session } from "../models";
+import type { Session, User } from "../models";
 export interface SecureStorage {
   get(): Promise<string | null>;
   set(value: string): Promise<void>;
@@ -42,6 +42,7 @@ export function createSessionManager(storage: SecureStorage) {
         const raw = await storage.get();
         if (start !== revision) return;
         const data = raw ? JSON.parse(raw) : null;
+        if (data?.signedOut === true) return;
         if (valid(data)) {
           current = data;
           notify();
@@ -74,11 +75,30 @@ export function createSessionManager(storage: SecureStorage) {
       });
       if (claim !== revision) throw Error("Sign-in session changed.");
     },
+    async updateUser(update: (user: User) => User, expected = revision) {
+      await enqueue(async () => {
+        if (expected !== revision || !current)
+          throw Error("Sign-in session changed.");
+        const next = { ...current, user: update(current.user) };
+        if (next.user.id !== current.user.id || !valid(next))
+          throw Error("Sign-in session changed.");
+        await storage.set(JSON.stringify(next));
+        if (expected !== revision) throw Error("Sign-in session changed.");
+        current = next;
+        notify();
+      });
+    },
     async clear() {
       revision++;
       current = null;
       notify();
-      await enqueue(() => storage.remove());
+      await enqueue(async () => {
+        try {
+          await storage.remove();
+        } catch {
+          await storage.set(JSON.stringify({ signedOut: true }));
+        }
+      });
     },
   };
 }

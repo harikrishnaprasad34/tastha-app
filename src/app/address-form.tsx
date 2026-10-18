@@ -8,7 +8,7 @@ export default function Screen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   return (
     <RequireCustomer>
-      <AddressForm navigate={navigate} id={id} />
+      <AddressForm key={id || "new"} navigate={navigate} id={id} />
     </RequireCustomer>
   );
 }

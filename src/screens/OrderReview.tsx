@@ -31,6 +31,7 @@ export function OrderReview({
     [comment, setComment] = useState(""),
     [fit, setFit] = useState(""),
     [existing, setExisting] = useState<Review | null>(null),
+    [removeExisting, setRemoveExisting] = useState(false),
     [photos, setPhotos] = useState<ImagePicker.ImagePickerAsset[]>([]),
     [loading, setLoading] = useState(true),
     [loaded, setLoaded] = useState(false),
@@ -106,7 +107,7 @@ export function OrderReview({
       form.append("title", title.trim());
       form.append("comment", comment.trim());
       form.append("fit", fit);
-      form.append("keepPhotos", "true");
+      form.append("keepPhotos", String(!removeExisting));
       if (existing) form.append("expectedUpdatedAt", existing.updatedAt);
       photos.forEach((photo, index) => {
         const type =
@@ -133,6 +134,7 @@ export function OrderReview({
       if (!result.review?.updatedAt)
         throw Error("Review submission was not confirmed. Reopen your review.");
       setExisting(result.review);
+      setRemoveExisting(false);
       setPhotos([]);
       setNotice(result.message || "Review submitted for approval.");
     } catch (e) {
@@ -227,7 +229,21 @@ export function OrderReview({
         />
       ) : null}
       {existing?.photos?.length && !photos.length ? (
-        <Text style={s.muted}>Your existing photos will be kept.</Text>
+        <View style={{ gap: 8 }}>
+          <Text style={s.muted}>
+            {removeExisting
+              ? "Existing photos will be removed when you submit."
+              : "Your existing photos will be kept."}
+          </Text>
+          <Button
+            title={
+              removeExisting ? "Keep existing photos" : "Remove existing photos"
+            }
+            outline
+            disabled={busy}
+            onPress={() => setRemoveExisting((value) => !value)}
+          />
+        </View>
       ) : null}
       <Text style={s.muted}>
         Only delivered purchases can be reviewed. Reviews appear publicly after

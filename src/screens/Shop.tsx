@@ -1,3 +1,4 @@
+import { QuickAddSheet } from "../components/QuickAddSheet";
 import React, { useEffect, useState, useRef } from "react";
 import {
   FlatList,
@@ -51,27 +52,135 @@ export function ProductCard({
   navigate: Navigate;
 }) {
   const image = productImages(product, API_ORIGIN)[0];
+  const dispatch = useAppDispatch();
+  const isSaved = useAppSelector((x) =>
+    x.commerce.wishlist.some((item) => item._id === product._id),
+  );
+  const saving = useAppSelector((x) => x.commerce.busy);
+  const accountId = useAppSelector((x) => x.auth.user?.id || "guest");
+  const [quickAdd, setQuickAdd] = useState(false),
+    [notice, setNotice] = useState("");
+  const savings =
+    Number.isFinite(product.originalPrice) &&
+    product.originalPrice! > product.price
+      ? product.originalPrice! - product.price
+      : 0;
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={"View " + product.name}
-      onPress={() => navigate("Product", product._id)}
-      style={[s.panel, { flex: 1, margin: 5 }]}
+    <View
+      style={[
+        s.panel,
+        { flex: 1, minWidth: 0, margin: 5, padding: 10, gap: 10 },
+      ]}
     >
-      {image ? (
-        <Image
-          source={{ uri: image }}
-          accessibilityLabel={product.name}
-          style={[s.image, { height: 180 }]}
+      <View style={[s.row, { justifyContent: "space-between", gap: 4 }]}>
+        <Text
+          numberOfLines={1}
+          style={[s.small, { color: "#D4AF37", flex: 1 }]}
+        >
+          {product.brand || "TASTHA"}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={
+            (isSaved ? "Remove " : "Save ") +
+            product.name +
+            (isSaved ? " from wishlist" : " to wishlist")
+          }
+          accessibilityState={{ selected: isSaved, disabled: saving }}
+          disabled={saving}
+          style={{
+            minWidth: 44,
+            minHeight: 44,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onPress={() => {
+            if (accountId === "guest") {
+              navigate("Login", "/product/" + encodeURIComponent(product._id));
+              return;
+            }
+            void dispatch(changeWishlist({ id: product._id, remove: isSaved }))
+              .unwrap()
+              .then(() =>
+                setNotice(
+                  isSaved ? "Removed from wishlist" : "Saved to wishlist",
+                ),
+              )
+              .catch((e) =>
+                setNotice(
+                  e instanceof Error ? e.message : "Wishlist update failed",
+                ),
+              );
+          }}
+        >
+          <Text style={{ color: "#D4AF37", fontSize: 24 }}>
+            {isSaved ? "♥" : "♡"}
+          </Text>
+        </Pressable>
+      </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={"View " + product.name}
+        onPress={() => navigate("Product", product._id)}
+        style={{ gap: 8 }}
+      >
+        {image ? (
+          <Image
+            source={{ uri: image }}
+            accessibilityLabel={product.name}
+            style={[s.image, { height: 170, borderRadius: 10 }]}
+          />
+        ) : (
+          <Text style={s.muted}>Image unavailable</Text>
+        )}
+        <Text
+          numberOfLines={2}
+          style={[s.text, { minHeight: 42, fontSize: 14 }]}
+        >
+          {product.name}
+        </Text>
+        <View style={[s.row, { gap: 6 }]}>
+          <Text style={[s.price, { fontSize: 18 }]}>
+            {money(product.price)}
+          </Text>
+          {savings > 0 ? (
+            <Text style={[s.small, { textDecorationLine: "line-through" }]}>
+              {money(product.originalPrice!)}
+            </Text>
+          ) : null}
+        </View>
+        {savings > 0 ? (
+          <Text style={[s.small, { color: "#D4AF37" }]}>
+            Save {money(savings)}
+          </Text>
+        ) : null}
+      </Pressable>
+      <Button
+        title="+ Add"
+        outline
+        onPress={() => {
+          setNotice("");
+          setQuickAdd(true);
+        }}
+      />
+      {notice ? (
+        <Text accessibilityLiveRegion="polite" style={s.small}>
+          {notice}
+        </Text>
+      ) : null}
+      {quickAdd ? (
+        <QuickAddSheet
+          key={product._id + accountId}
+          id={product._id}
+          navigate={navigate}
+          close={() => setQuickAdd(false)}
+          added={() => setNotice("Added to bag")}
         />
-      ) : (
-        <Text style={s.muted}>Image unavailable</Text>
-      )}
-      <Text style={s.text}>{product.name}</Text>
-      <Text style={s.price}>{money(product.price)}</Text>
-    </Pressable>
+      ) : null}
+    </View>
   );
 }
+
 export function Home({ navigate }: { navigate: Navigate }) {
   const dispatch = useAppDispatch();
   const { home, homeLoading, homeError } = useAppSelector((x) => x.catalog);
@@ -99,6 +208,23 @@ export function Home({ navigate }: { navigate: Navigate }) {
         <Button title="Style studio" outline onPress={() => navigate("AI")} />
       </View>
       <Text style={s.muted}>Less searching. More finding your style.</Text>
+      <View style={s.row}>
+        <Button
+          title="New in"
+          outline
+          onPress={() => navigate("StoreLink", "/shop?sort=newest")}
+        />
+        <Button
+          title="Offers"
+          outline
+          onPress={() => navigate("StoreLink", "/shop?offersOnly=true")}
+        />
+        <Button
+          title="Saved looks"
+          outline
+          onPress={() => navigate("SavedLooks")}
+        />
+      </View>
       {homeLoading ? <Loading /> : null}
       <ErrorBox message={homeError} retry={() => dispatch(fetchHome(pin))} />
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -107,18 +233,31 @@ export function Home({ navigate }: { navigate: Navigate }) {
           {home?.categories?.map((category) => (
             <Pressable
               key={category.slug || category.name}
-              style={[s.pill, { width: 110 }]}
+              style={[
+                s.pill,
+                { width: 86, alignItems: "center", borderWidth: 0, padding: 6 },
+              ]}
               accessibilityRole="button"
               onPress={() => navigate("Shop", category.name)}
             >
               {imageUrl(category.image, API_ORIGIN) ? (
                 <Image
                   source={{ uri: imageUrl(category.image, API_ORIGIN)! }}
-                  style={{ width: 82, height: 72, borderRadius: 8 }}
+                  style={{
+                    width: 60,
+                    height: 60,
+                    borderRadius: 30,
+                    backgroundColor: "#121316",
+                  }}
                   accessibilityLabel={category.name}
                 />
               ) : null}
-              <Text style={s.text}>{category.name}</Text>
+              <Text
+                numberOfLines={2}
+                style={[s.small, { textAlign: "center" }]}
+              >
+                {category.name}
+              </Text>
             </Pressable>
           ))}
         </View>

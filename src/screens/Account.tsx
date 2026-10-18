@@ -21,7 +21,7 @@ import { mergeProfileUser } from "../api/profile";
 import { API_URL } from "../config";
 import type { DeliveryLocation, Session } from "../models";
 import { useAppDispatch, useAppSelector } from "../state";
-import { actions, saveAddress } from "../state/store";
+import { actions, saveAddress, fetchAddresses } from "../state/store";
 import { Button, ErrorBox, Field, styles as s } from "../components/ui";
 import type { Navigate } from "./Shop";
 export function Login({ navigate }: { navigate: Navigate }) {
@@ -138,8 +138,8 @@ export function Account({ navigate }: { navigate: Navigate }) {
             controller.signal.aborted
           )
             return;
-          await session.save(
-            { ...current, user: mergeProfileUser(current.user, response.user) },
+          await session.updateUser(
+            (user) => mergeProfileUser(user, response.user),
             revision,
           );
           if (!controller.signal.aborted) setProfileError("");
@@ -152,22 +152,22 @@ export function Account({ navigate }: { navigate: Navigate }) {
   );
   async function logout() {
     const prior = session.get();
+    if (prior) {
+      // Local sign-out must succeed even when the network is unavailable.
+      // The backend revokes refresh tokens from the JSON body, not the header.
+      void fetch(API_URL + "/auth/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${prior.accessToken}`,
+        },
+        // Revoke this device's refresh token, not every other logged-in device.
+        body: JSON.stringify({ token: prior.refreshToken }),
+        signal: AbortSignal.timeout(10000),
+      }).catch(() => {});
+    }
     try {
       await session.clear();
-      if (prior) {
-        // Local sign-out must succeed even when the network is unavailable.
-        // The backend revokes refresh tokens from the JSON body, not the header.
-        void fetch(API_URL + "/auth/logout", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${prior.accessToken}`,
-          },
-          // Revoke this device's refresh token, not every other logged-in device.
-          body: JSON.stringify({ token: prior.refreshToken }),
-          signal: AbortSignal.timeout(10000),
-        }).catch(() => {});
-      }
       const publicArea = publicLocationAfterSignOut(delivery);
       if (publicArea && delivery?.addressId) {
         try {
@@ -183,7 +183,16 @@ export function Account({ navigate }: { navigate: Navigate }) {
     } catch {
       Alert.alert(
         "Sign-out storage",
-        "You are signed out on this screen. Secure storage could not be cleared; close the app and retry.",
+        "You are signed out on this screen. Secure storage could not be cleared. Keep the app open and retry sign-out.",
+        [
+          {
+            text: "Retry",
+            onPress: () => {
+              void logout();
+            },
+          },
+          { text: "Keep open", style: "cancel" },
+        ],
       );
     }
   }
@@ -309,7 +318,7 @@ export function EditProfile({ navigate }: { navigate: Navigate }) {
           phone: Yup.string()
             .trim()
             .matches(
-              /^(?:\\+91[ -]?)?[6-9]\\d{9}$/,
+              /^(?:\+91[ -]?)?[6-9]\d{9}$/,
               "Enter a valid mobile number",
             )
             .required("Phone number is required"),
@@ -322,6 +331,7 @@ export function EditProfile({ navigate }: { navigate: Navigate }) {
           setError("");
           setNotice("");
           const original = session.get();
+          const revision = session.revision();
           if (!original || original.user.id !== user.id) {
             setError(
               "Your session changed. Sign in again to edit this profile.",
@@ -350,10 +360,10 @@ export function EditProfile({ navigate }: { navigate: Navigate }) {
             });
             if (!result.user)
               throw Error("Tastha did not confirm the profile update.");
-            const merged = mergeProfileUser(original.user, result.user);
-            await session.save(
-              { ...original, user: merged },
-              session.revision(),
+            const savedUser = result.user;
+            await session.updateUser(
+              (user) => mergeProfileUser(user, savedUser),
+              revision,
             );
             setNotice("Your profile has been saved.");
           } catch (reason) {
@@ -464,9 +474,32 @@ export function AddressForm({
     x.commerce.addresses.find((a) => a._id === id),
   );
   const [error, setError] = useState("");
+  const createdId = useRef<string | undefined>(undefined);
+  const addressLoading = useAppSelector((x) =>
+    Boolean(x.commerce.pending.addresses),
+  );
+  const addressError = useAppSelector((x) => x.commerce.errors.addresses);
+  useEffect(() => {
+    if (id && !saved) void dispatch(fetchAddresses());
+  }, [dispatch, id, saved]);
+
   if (id && !saved)
     return (
-      <ErrorBox message="Open Saved Addresses and choose the address to edit." />
+      <View style={s.content}>
+        {addressLoading ? (
+          <Text style={s.muted}>Loading your address…</Text>
+        ) : (
+          <ErrorBox
+            message={addressError || "This address is unavailable."}
+            retry={() => dispatch(fetchAddresses())}
+          />
+        )}
+        <Button
+          title="Saved addresses"
+          outline
+          onPress={() => navigate("Addresses")}
+        />
+      </View>
     );
   return (
     <ScrollView
@@ -503,8 +536,14 @@ export function AddressForm({
           try {
             setError("");
             const saved = await dispatch(
-              saveAddress({ ...values, ...(id ? { _id: id } : {}) }),
+              saveAddress({
+                ...values,
+                ...(id || createdId.current
+                  ? { _id: id || createdId.current }
+                  : {}),
+              }),
             ).unwrap();
+            createdId.current = saved._id;
             const delivery = locationFromAddress(saved);
             await saveDeliveryLocation(delivery);
             dispatch(actions.setLocation(delivery));
