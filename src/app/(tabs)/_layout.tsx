@@ -33,6 +33,12 @@ export default function TabLayout() {
             </Text>
           </Pressable>
         </Link>
+        <Link href="/search" asChild>
+          <Pressable accessibilityRole="button" accessibilityLabel="Search products"
+            style={[s.pill, { minHeight: 44, justifyContent: "center" }]}>
+            <Text style={s.muted}>⌕ Search products and collections</Text>
+          </Pressable>
+        </Link>
       </SafeAreaView>
       <Tabs
         screenOptions={{

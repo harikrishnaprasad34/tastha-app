@@ -13,6 +13,7 @@ const routes: Record<string, string> = {
   Checkout: "/checkout",
   Location: "/location",
   AI: "/ai",
+  Search: "/search",
 };
 export function routeFor(name: string, id?: string) {
   if (name === "TrackOrder") {
