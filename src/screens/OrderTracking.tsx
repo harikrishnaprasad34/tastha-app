@@ -8,14 +8,12 @@ import type { Navigate } from "./Shop";
 
 export function OrderTracking({ id, navigate }: { id: string; navigate: Navigate }) {
   const [order, setOrder] = useState<Order | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
   useEffect(() => {
     if (!id) return;
     const controller = new AbortController();
-    setLoading(true);
-    setError("");
     api.request<{ order: Order }>("/orders/" + encodeURIComponent(id), {
       auth: "required", signal: controller.signal,
     }).then((response) => {
@@ -36,16 +34,24 @@ export function OrderTracking({ id, navigate }: { id: string; navigate: Navigate
       <Text style={s.title}>Track your order</Text>
       <Button title="Back to order" outline onPress={() => navigate("OrderDetail", id)} />
       <Button title="Refresh status" outline disabled={loading}
-        onPress={() => setRefresh((value) => value + 1)} />
+        onPress={() => {
+          setLoading(true);
+          setError("");
+          setRefresh((value) => value + 1);
+        }} />
       {loading ? <Loading /> : null}
-      <ErrorBox message={error} retry={() => setRefresh((value) => value + 1)} />
+      <ErrorBox message={error} retry={() => {
+          setLoading(true);
+          setError("");
+          setRefresh((value) => value + 1);
+        }} />
       {order && tracking ? (
         <>
           <View style={s.panel}>
             <Text style={s.heading}>{order.orderNumber}</Text>
             <Text style={s.text}>Status: {tracking.status.replaceAll("_", " ")}</Text>
             <Text style={s.muted}>
-              This progress reflects Tastha's recorded order status, not live courier GPS
+              This progress reflects Tastha’s recorded order status, not live courier GPS
               or a guaranteed delivery time.
             </Text>
           </View>
