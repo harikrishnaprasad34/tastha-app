@@ -99,6 +99,7 @@ export function Help({ section, navigate }: { section: string; navigate: Navigat
       <Text style={s.muted}>
         These short overviews are not substitutes for complete published policies.
       </Text>
+      <Button title="Contact Us" outline onPress={() => navigate("Contact")} />
       <Button title="Frequently asked questions" outline
         onPress={() => navigate("Help", "faq")} />
       <Button title="Terms and conditions" outline

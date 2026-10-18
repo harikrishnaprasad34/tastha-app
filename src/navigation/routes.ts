@@ -1,4 +1,5 @@
 const routes: Record<string, string> = {
+  Contact: "/contact",
   Security: "/security",
   SavedLooks: "/saved-looks",
   Otp: "/otp",
@@ -85,6 +86,7 @@ export function storeLink(value?: string): string {
   );
   if (category && decode(category[1]))
     return "/(tabs)/shop?category=" + encodeURIComponent(decode(category[1]));
+  if (path === "/contact") return "/contact";
   if (path === "/choose-occasion")
     return (
       "/ai" +

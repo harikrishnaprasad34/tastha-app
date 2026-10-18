@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { StoreContact } from "../components/StoreContact";
 import { ProductReviews } from "../components/ProductReviews";
 import { api } from "../api/runtime";
 import { API_ORIGIN } from "../config";
@@ -250,8 +251,31 @@ export function Home({ navigate }: { navigate: Navigate }) {
           ))}
         </View>
       ) : null}
-      <Text style={s.title}>One good piece. Endless possibilities.</Text>
-      <Button title="See every style" onPress={() => navigate("Shop")} />
+      <View style={{ gap: 12, paddingVertical: 12 }}>
+        <Text style={[s.small, { color: "#D4AF37", letterSpacing: 2 }]}>
+          MAKE IT YOURS
+        </Text>
+        <Text style={[s.title, { fontSize: 26 }]}>
+          One good piece.{" "}
+          <Text style={{ color: "#D4AF37", fontStyle: "italic" }}>
+            Endless possibilities.
+          </Text>
+        </Text>
+        <Button title="See every style" onPress={() => navigate("Shop")} />
+      </View>
+      <StoreContact compact />
+      <View style={s.row}>
+        <Button
+          title="Contact Us"
+          outline
+          onPress={() => navigate("Contact")}
+        />
+        <Button
+          title="Help & FAQs"
+          outline
+          onPress={() => navigate("Help", "faq")}
+        />
+      </View>
     </ScrollView>
   );
 }

@@ -23,6 +23,11 @@ import { loadStorefrontHome } from "../api/home";
 import { publicLocationAfterSignOut } from "../shared/deliveryLocation";
 import { normalizeProductPage } from "../shared/catalogPage";
 
+import {
+  readPublicSettings,
+  type PublicStoreSettings,
+} from "../shared/storefrontSettings";
+
 interface Catalog {
   items: Product[];
   key: string;
@@ -49,6 +54,12 @@ interface Commerce {
   errors: Record<string, string | null>;
 }
 export interface AppState {
+  publicSettings: {
+    data: PublicStoreSettings | null;
+    loading: boolean;
+    error: string | null;
+    requestId: string | null;
+  };
   auth: { user: User | null; ready: boolean; error: string | null };
   catalog: Catalog;
   commerce: Commerce;
@@ -60,6 +71,50 @@ interface Extra {
 }
 type Config = { state: AppState; extra: Extra };
 const thunk = createAsyncThunk.withTypes<Config>();
+export const fetchPublicSettings = thunk(
+  "publicSettings/fetch",
+  async (_, { extra, signal }) => {
+    const response = await extra.api.request<{
+      success?: boolean;
+      settings?: unknown;
+    }>("/store/settings", { auth: "none", signal });
+    if (!response.success)
+      throw Error("Contact details are temporarily unavailable.");
+    return readPublicSettings(response.settings);
+  },
+  { condition: (_, { getState }) => !getState().publicSettings.loading },
+);
+const publicSettings = createSlice({
+  name: "publicSettings",
+  initialState: {
+    data: null as PublicStoreSettings | null,
+    loading: false,
+    error: null as string | null,
+    requestId: null as string | null,
+  },
+  reducers: {},
+  extraReducers: (b) => {
+    b.addCase(fetchPublicSettings.pending, (s, a) => {
+      s.loading = true;
+      s.error = null;
+      s.requestId = a.meta.requestId;
+    });
+    b.addCase(fetchPublicSettings.fulfilled, (s, a) => {
+      if (s.requestId !== a.meta.requestId) return;
+      s.data = a.payload;
+      s.loading = false;
+      s.requestId = null;
+    });
+    b.addCase(fetchPublicSettings.rejected, (s, a) => {
+      if (s.requestId !== a.meta.requestId) return;
+      s.data = null;
+      s.loading = false;
+      s.error =
+        a.error.message || "Contact details are temporarily unavailable.";
+      s.requestId = null;
+    });
+  },
+});
 const initialCatalog = (): Catalog => ({
   items: [],
   key: "",
@@ -533,6 +588,7 @@ export function buildStore(extra: Extra) {
   const store = configureStore({
     reducer: {
       auth: auth.reducer,
+      publicSettings: publicSettings.reducer,
       catalog: catalog.reducer,
       commerce: commerce.reducer,
       location: location.reducer,

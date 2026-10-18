@@ -250,6 +250,7 @@ export function Account({ navigate }: { navigate: Navigate }) {
         outline
         onPress={() => navigate("Location")}
       />
+      <Button title="Contact Us" outline onPress={() => navigate("Contact")} />
       <Button
         title="Help and FAQs"
         outline
