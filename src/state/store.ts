@@ -353,6 +353,15 @@ const commerce = createSlice({
     selectAddress(s, a: PayloadAction<string>) {
       s.selectedAddressId = a.payload;
     },
+    removeSavedAddress(s, a: PayloadAction<string>) {
+      s.addresses = s.addresses.filter((item) => item._id !== a.payload);
+      if (s.selectedAddressId === a.payload) s.selectedAddressId = null;
+    },
+    markDefaultAddress(s, a: PayloadAction<string>) {
+      s.addresses.forEach((item) => {
+        item.isDefault = item._id === a.payload;
+      });
+    },
     replaceBag(s, a: PayloadAction<Cart | null>) {
       s.bag = a.payload;
     },

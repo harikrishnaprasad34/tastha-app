@@ -231,66 +231,120 @@ export function Wishlist({ navigate }: { navigate: Navigate }) {
 }
 export function Addresses({ navigate }: { navigate: Navigate }) {
   const dispatch = useAppDispatch();
-  const { addresses, selectedAddressId, pending, errors } = useAppSelector(
-    (x) => x.commerce,
-  );
-  const [locationError, setLocationError] = useState("");
-  const [selecting, setSelecting] = useState(false);
+  const { addresses, selectedAddressId, pending, errors } = useAppSelector((x) => x.commerce);
+  const delivery = useAppSelector((x) => x.location);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   useEffect(() => {
-    dispatch(fetchAddresses());
+    void dispatch(fetchAddresses());
   }, [dispatch]);
 
   async function choose(address: (typeof addresses)[number]) {
-    if (selecting) return;
-    setSelecting(true);
-    setLocationError("");
+    if (saving) return;
+    setSaving(true);
+    setError("");
     try {
-      const delivery = locationFromAddress(address);
-      await saveDeliveryLocation(delivery);
+      const updated = locationFromAddress(address);
+      await saveDeliveryLocation(updated);
       dispatch(actions.selectAddress(address._id));
-      dispatch(actions.setLocation(delivery));
-    } catch {
-      setLocationError(
-        "Delivery location could not be saved. Try selecting again.",
-      );
+      dispatch(actions.setLocation(updated));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not save delivery address.");
     } finally {
-      setSelecting(false);
+      setSaving(false);
     }
   }
-
+  async function setDefault(address: (typeof addresses)[number]) {
+    if (saving || address.isDefault) return;
+    setSaving(true);
+    setError("");
+    try {
+      const response = await api.request<{ address: { _id: string; isDefault?: boolean } }>(
+        "/users/addresses/" + encodeURIComponent(address._id) + "/default",
+        { auth: "required", method: "PATCH" },
+      );
+      if (response.address?._id !== address._id || response.address.isDefault !== true)
+        throw Error("The server did not confirm this default address.");
+      dispatch(actions.markDefaultAddress(address._id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Default address could not be updated.");
+    } finally {
+      setSaving(false);
+    }
+  }
+  function confirmDelete(address: (typeof addresses)[number]) {
+    if (saving) return;
+    Alert.alert(
+      "Remove saved address?",
+      "The address will be removed from your Tastha account. Past orders are unchanged.",
+      [
+        { text: "Keep", style: "cancel" },
+        {
+          text: "Remove", style: "destructive",
+          onPress: () => {
+            void (async () => {
+              setSaving(true);
+              setError("");
+              try {
+                await api.request(
+                  "/users/addresses/" + encodeURIComponent(address._id),
+                  { auth: "required", method: "DELETE" },
+                );
+                dispatch(actions.removeSavedAddress(address._id));
+                if (delivery?.addressId === address._id) {
+                  const manual = {
+                    label: delivery.label,
+                    pinCode: delivery.pinCode,
+                    ...(typeof delivery.lat === "number" && typeof delivery.lng === "number"
+                      ? { lat: delivery.lat, lng: delivery.lng }
+                      : {}),
+                  };
+                  await saveDeliveryLocation(manual);
+                  dispatch(actions.setLocation(manual));
+                }
+                await dispatch(fetchAddresses()).unwrap();
+              } catch (e) {
+                setError(e instanceof Error ? e.message : "Address removed, but its selection could not be refreshed.");
+              } finally {
+                setSaving(false);
+              }
+            })();
+          },
+        },
+      ],
+    );
+  }
   return (
     <ScrollView contentContainerStyle={s.content}>
       <Text style={s.title}>Saved addresses</Text>
-      <Text style={s.muted}>
-        Select an address to use it for checkout and to refresh products in your
-        delivery area.
-      </Text>
+      <Text style={s.muted}>Choose where to deliver, set your default address or remove old addresses.</Text>
       {pending.addresses ? <Loading /> : null}
-      <ErrorBox
-        message={errors.addresses || locationError}
-        retry={() => dispatch(fetchAddresses())}
-      />
-      {addresses.map((a) => (
-        <Pressable
-          key={a._id}
-          disabled={selecting}
-          accessibilityRole="radio"
-          accessibilityState={{
-            checked: a._id === selectedAddressId,
-            disabled: selecting,
-          }}
-          style={[s.panel, a._id === selectedAddressId && s.active]}
-          onPress={() => {
-            void choose(a);
-          }}
-        >
-          <Text style={s.heading}>{a.fullName}</Text>
-          <Text style={s.text}>
-            {a.streetAddress}, {a.city}, {a.state} {a.pinCode}
+      <ErrorBox message={errors.addresses || error} retry={() => dispatch(fetchAddresses())} />
+      {addresses.map((address) => (
+        <View key={address._id} style={[s.panel, address._id === selectedAddressId && s.active]}>
+          <Text style={s.heading}>
+            {address.fullName}{address.isDefault ? " · Default" : ""}
           </Text>
-          <Text style={s.muted}>{a.phone}</Text>
-        </Pressable>
+          <Text style={s.text}>
+            {address.streetAddress}, {address.city}, {address.state} {address.pinCode}
+          </Text>
+          <Text style={s.muted}>{address.phone}</Text>
+          <Button
+            title={address._id === selectedAddressId ? "Selected for delivery" : "Deliver here"}
+            disabled={saving || address._id === selectedAddressId}
+            onPress={() => { void choose(address); }}
+          />
+          {!address.isDefault ? (
+            <Button title="Make default" outline disabled={saving}
+              onPress={() => { void setDefault(address); }} />
+          ) : null}
+          <Button title="Remove address" outline disabled={saving}
+            onPress={() => confirmDelete(address)} />
+        </View>
       ))}
+      {!pending.addresses && !errors.addresses && addresses.length === 0 ? (
+        <Empty title="No saved addresses" detail="Add an address to use it at checkout." />
+      ) : null}
       <Button title="Add an address" onPress={() => navigate("AddressForm")} />
     </ScrollView>
   );

@@ -954,3 +954,13 @@ describe("shared Android and iOS routes", () => {
   it("rejects unknown routes", () =>
     expect(() => routeFor("Unknown")).toThrow());
 });
+
+describe("saved-address state after account changes", () => {
+  it("does not retain a deleted selected address in checkout", () => {
+    const manager = createSessionManager(storage());
+    const appStore = buildStore({ api: {} as ReturnType<typeof createApiClient>, session: manager });
+    appStore.dispatch(actions.selectAddress("a1"));
+    appStore.dispatch(actions.removeSavedAddress("a1"));
+    expect(appStore.getState().commerce.selectedAddressId).toBeNull();
+  });
+});
