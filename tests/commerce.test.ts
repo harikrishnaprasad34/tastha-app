@@ -1,5 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
-import { describeDetectedPlace, locationFromAddress, parseSavedLocation } from "../src/shared/deliveryLocation";
+import {
+  describeDetectedPlace,
+  locationFromAddress,
+  locationFromSearchResult,
+  parseSavedLocation,
+} from "../src/shared/deliveryLocation";
 import { createSessionManager } from "../src/api/session";
 import { createApiClient } from "../src/api/client";
 import { customerLoginPayload } from "../src/api/authPayload";
@@ -630,5 +635,44 @@ describe("backend-compatible customer account and coupon requests", () => {
     expect(request).toHaveBeenCalledWith("/cart/remove-coupon", expect.objectContaining({
       body: { cartId: "c1" },
     }));
+  });
+});
+
+describe("searchable delivery location", () => {
+  it("does not trust the backend's generic fallback PIN", () => {
+    const detected = describeDetectedPlace(
+      { city: "Hyderabad" },
+      {
+        displayAddress: "Pinpoint Location, Hyderabad, Telangana",
+        pincode: "500081",
+        city: "Hyderabad",
+      },
+    );
+    expect(detected.pinCode).toBe("");
+    expect(detected.label).toBe("Hyderabad");
+  });
+  it("maps real location suggestions to confirmable delivery addresses", () => {
+    expect(locationFromSearchResult({
+      displayAddress: "Road No 12, Banjara Hills, Hyderabad",
+      pincode: "500034",
+      lat: 17.415,
+      lng: 78.445,
+    })).toMatchObject({
+      label: "Road No 12, Banjara Hills, Hyderabad",
+      pinCode: "500034",
+      lat: 17.415,
+      lng: 78.445,
+    });
+  });
+  it("rejects geocoder placeholders and never invents missing PINs", () => {
+    expect(locationFromSearchResult({
+      formattedAddress: "Selected Location (17.4500, 78.3800)",
+      pincode: "500081",
+    })).toBeNull();
+    expect(locationFromSearchResult({
+      placeName: "Unknown locality",
+      lat: 17,
+      lng: 78,
+    })?.pinCode).toBe("");
   });
 });

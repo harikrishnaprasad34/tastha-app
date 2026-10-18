@@ -1,14 +1,20 @@
-import React, { useState } from "react";
-import { ScrollView, Text, View, Alert } from "react-native";
+import React, { useEffect, useState } from "react";
+import { ScrollView, Text, View, Alert, Pressable } from "react-native";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import * as Location from "expo-location";
 import { saveDeliveryLocation } from "../api/deliveryLocation";
-import { describeDetectedPlace, locationFromAddress, validPinCode } from "../shared/deliveryLocation";
+import {
+  describeDetectedPlace,
+  locationFromAddress,
+  locationFromSearchResult,
+  validPinCode,
+  type SearchedPlace,
+} from "../shared/deliveryLocation";
 import { api, session } from "../api/runtime";
 import { customerLoginPayload } from "../api/authPayload";
 import { API_URL } from "../config";
-import type { Session } from "../models";
+import type { DeliveryLocation, Session } from "../models";
 import { useAppDispatch, useAppSelector } from "../state";
 import { actions, saveAddress } from "../state/store";
 import { Button, ErrorBox, Field, styles as s } from "../components/ui";
@@ -265,12 +271,58 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
   const [accuracyNote, setAccuracyNote] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [searchEnabled, setSearchEnabled] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [suggestions, setSuggestions] = useState<DeliveryLocation[]>([]);
+
+  useEffect(() => {
+    const query = label.trim();
+    if (!showFields || !searchEnabled || query.length < 3) {
+      setSuggestions([]);
+      setSearching(false);
+      return;
+    }
+    let active = true;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      if (!active) return;
+      setSearching(true);
+      api.request<{ locations?: SearchedPlace[] }>(
+        "/location/search?q=" + encodeURIComponent(query),
+        { timeout: 8000, signal: controller.signal },
+      )
+        .then((result) => {
+          if (!active) return;
+          setSuggestions(
+            Array.isArray(result.locations)
+              ? result.locations
+                  .slice(0, 8)
+                  .map(locationFromSearchResult)
+                  .filter((value): value is DeliveryLocation => value !== null)
+              : [],
+          );
+        })
+        .catch(() => {
+          if (active) setSuggestions([]);
+        })
+        .finally(() => {
+          if (active) setSearching(false);
+        });
+    }, 350);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [label, searchEnabled, showFields]);
 
   async function detect() {
     if (busy) return;
     setBusy(true);
     setError("");
     setAccuracyNote("");
+    setSearchEnabled(false);
+    setSuggestions([]);
     try {
       const servicesEnabled = await Location.hasServicesEnabledAsync();
       if (!servicesEnabled)
@@ -426,7 +478,10 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
         <Button
           title="Enter area or PIN manually"
           outline
-          onPress={() => setShowFields(true)}
+          onPress={() => {
+            setShowFields(true);
+            setSearchEnabled(true);
+          }
         />
       ) : (
         <View style={s.panel}>
@@ -438,9 +493,47 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
             placeholder="Road number, landmark or locality"
             onChangeText={(value) => {
               setLabel(value);
+              // Changing a road must not carry forward an unrelated old PIN.
+              setPin("");
               setCoordinates(undefined);
+              setSearchEnabled(true);
+              setAccuracyNote("");
             }}
           />
+          {searching ? <Text style={s.muted}>Finding nearby areas…</Text> : null}
+          {suggestions.length ? (
+            <View style={{ gap: 8 }}>
+              <Text style={s.muted}>Choose a suggested street or area</Text>
+              {suggestions.map((place, index) => (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={"Select " + place.label}
+                  key={place.label + index}
+                  style={s.pill}
+                  onPress={() => {
+                    setLabel(place.label);
+                    setPin(place.pinCode || "");
+                    setCoordinates(
+                      typeof place.lat === "number" &&
+                      typeof place.lng === "number"
+                        ? { lat: place.lat, lng: place.lng }
+                        : undefined,
+                    );
+                    setSearchEnabled(false);
+                    setSuggestions([]);
+                    setError("");
+                  }}
+                >
+                  <Text style={s.text}>{place.label}</Text>
+                  {place.pinCode ? (
+                    <Text style={s.muted}>PIN {place.pinCode}</Text>
+                  ) : (
+                    <Text style={s.muted}>Confirm your delivery PIN</Text>
+                  )}
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
           <Field
             label="Six-digit delivery PIN"
             value={pin}

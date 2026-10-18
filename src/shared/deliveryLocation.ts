@@ -37,15 +37,21 @@ export function describeDetectedPlace(
   const detailed = [street || trimmed(native?.name), locality, city]
     .filter((part, index, parts) => part && parts.indexOf(part) === index)
     .join(", ");
+  // The backend's geocoding fallback uses a generic "Pinpoint Location"
+  // label and a fixed example PIN. Never accept it as a genuine delivery PIN.
+  const placeholder = /^(?:pinpoint location|selected location)/i.test(
+    trimmed(server?.displayAddress) || trimmed(server?.address),
+  );
+  const trustworthyServer = placeholder ? null : server;
   const serverLabel =
-    trimmed(server?.displayAddress) ||
-    trimmed(server?.address) ||
-    trimmed(server?.city);
+    trimmed(trustworthyServer?.displayAddress) ||
+    trimmed(trustworthyServer?.address) ||
+    trimmed(trustworthyServer?.city);
   const label =
     (street ? detailed : serverLabel || detailed) ||
     trimmed(native?.formattedAddress);
   const pinCode =
-    [native?.postalCode, server?.pinCode, server?.pincode, server?.postcode]
+    [native?.postalCode, trustworthyServer?.pinCode, trustworthyServer?.pincode, trustworthyServer?.postcode]
       .find(validPinCode) || "";
   return { label, pinCode };
 }
@@ -107,4 +113,48 @@ export function parseSavedLocation(raw: string | null): DeliveryLocation | null 
   } catch {
     return null;
   }
+}
+
+/** A suggestion is offered to the customer for review, never auto-confirmed. */
+export interface SearchedPlace {
+  placeId?: string;
+  placeName?: string;
+  formattedAddress?: string;
+  displayAddress?: string;
+  compactLocation?: string;
+  city?: string;
+  pincode?: string;
+  postalCode?: string;
+  pinCode?: string;
+  lat?: number;
+  lng?: number;
+  latitude?: number;
+  longitude?: number;
+}
+export function locationFromSearchResult(
+  place: SearchedPlace,
+): DeliveryLocation | null {
+  if (!place || typeof place !== "object") return null;
+  const label =
+    trimmed(place.displayAddress) ||
+    trimmed(place.formattedAddress) ||
+    trimmed(place.compactLocation) ||
+    trimmed(place.placeName);
+  if (
+    !label ||
+    /^(?:pinpoint location|selected location)/i.test(label)
+  ) return null;
+  const pinCode =
+    [place.pincode, place.postalCode, place.pinCode].find(validPinCode) || "";
+  const lat = place.lat ?? place.latitude;
+  const lng = place.lng ?? place.longitude;
+  const validCoordinates =
+    typeof lat === "number" && Number.isFinite(lat) &&
+    typeof lng === "number" && Number.isFinite(lng) &&
+    Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+  return {
+    label: label.slice(0, 180),
+    pinCode,
+    ...(validCoordinates ? { lat, lng } : {}),
+  };
 }
