@@ -4,6 +4,8 @@ export interface User {
   email?: string;
   phone?: string;
   role: string;
+  stylePreference?: string;
+  sizePreference?: string;
 }
 export interface Session {
   accessToken: string;

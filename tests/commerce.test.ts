@@ -10,6 +10,7 @@ import { createApiClient } from "../src/api/client";
 import { loadStorefrontHome } from "../src/api/home";
 import { filterCustomerOrders, orderCanBeCancelled } from "../src/shared/orders";
 import { customerLoginPayload } from "../src/api/authPayload";
+import { mergeProfileUser } from "../src/api/profile";
 import { createCheckout, type Attempt } from "../src/api/checkout";
 import { mergeProducts, productImages, imageUrl } from "../src/shared/catalog";
 import { getVariantAvailability } from "../src/shared/productAvailability";
@@ -726,5 +727,27 @@ describe("customer orders website parity", () => {
     expect(orderCanBeCancelled(orders[0])).toBe(true);
     expect(orderCanBeCancelled(orders[1])).toBe(false);
     expect(orderCanBeCancelled(orders[2])).toBe(false);
+  });
+});
+
+describe("saved profile integration", () => {
+  it("keeps the original account identity when MongoDB returns _id", () => {
+    const result = mergeProfileUser(customer.user, {
+      _id: "customer1",
+      fullName: "Updated Customer",
+      phone: "9999999999",
+      stylePreference: "Formal",
+      sizePreference: "L",
+    });
+    expect(result).toMatchObject({
+      id: "customer1",
+      role: "CUSTOMER",
+      fullName: "Updated Customer",
+      stylePreference: "Formal",
+    });
+  });
+  it("rejects a response for another account", () => {
+    expect(() => mergeProfileUser(customer.user, { _id: "other" })).toThrow("different account");
+    expect(() => mergeProfileUser(customer.user, { id: "other" })).toThrow("different account");
   });
 });

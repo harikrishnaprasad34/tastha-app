@@ -13,6 +13,7 @@ import {
 } from "../shared/deliveryLocation";
 import { api, session } from "../api/runtime";
 import { customerLoginPayload } from "../api/authPayload";
+import { mergeProfileUser } from "../api/profile";
 import { API_URL } from "../config";
 import type { DeliveryLocation, Session } from "../models";
 import { useAppDispatch, useAppSelector } from "../state";
@@ -131,6 +132,7 @@ export function Account({ navigate }: { navigate: Navigate }) {
       ) : (
         <>
           <Text style={s.muted}>{user.email || user.phone}</Text>
+          <Button title="Edit profile" outline onPress={() => navigate("EditProfile")} />
           <Button title="My orders" onPress={() => navigate("Orders")} />
           <Button
             title="Saved addresses"
@@ -153,6 +155,132 @@ export function Account({ navigate }: { navigate: Navigate }) {
     </ScrollView>
   );
 }
+export function EditProfile({ navigate }: { navigate: Navigate }) {
+  const user = useAppSelector((state) => state.auth.user);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  if (!user) {
+    return (
+      <View style={s.content}>
+        <Text style={s.muted}>Sign in to edit your Tastha profile.</Text>
+        <Button title="Sign in" onPress={() => navigate("Login")} />
+      </View>
+    );
+  }
+  return (
+    <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
+      <Text style={s.title}>Edit Profile</Text>
+      <Text style={s.muted}>
+        Your changes are saved to your existing Tastha customer account.
+      </Text>
+      <Formik
+        key={user.id}
+        enableReinitialize
+        initialValues={{
+          fullName: user.fullName || "",
+          phone: user.phone || "",
+          stylePreference: user.stylePreference || "Smart Casual",
+          sizePreference: user.sizePreference || "M",
+        }}
+        validationSchema={Yup.object({
+          fullName: Yup.string().trim().min(2).max(80).required("Full name is required"),
+          phone: Yup.string().trim().matches(/^(?:\\+91[ -]?)?[6-9]\\d{9}$/, "Enter a valid mobile number").required("Phone number is required"),
+          stylePreference: Yup.string().required(),
+          sizePreference: Yup.string().oneOf(["S", "M", "L", "XL", "XXL"]).required(),
+        })}
+        onSubmit={async (values) => {
+          setError("");
+          setNotice("");
+          const original = session.get();
+          if (!original || original.user.id !== user.id) {
+            setError("Your session changed. Sign in again to edit this profile.");
+            return;
+          }
+          try {
+            const result = await api.request<{ user?: {
+              _id?: string; id?: string; fullName?: string; phone?: string;
+              stylePreference?: string; sizePreference?: string;
+            } }>("/users/profile", {
+              method: "PUT",
+              auth: "required",
+              body: {
+                fullName: values.fullName.trim(),
+                phone: values.phone.trim(),
+                stylePreference: values.stylePreference,
+                sizePreference: values.sizePreference,
+              },
+            });
+            if (!result.user)
+              throw Error("Tastha did not confirm the profile update.");
+            const merged = mergeProfileUser(original.user, result.user);
+            await session.save(
+              { ...original, user: merged },
+              session.revision(),
+            );
+            setNotice("Your profile has been saved.");
+          } catch (reason) {
+            setError(
+              reason instanceof Error ? reason.message : "Could not save your profile.",
+            );
+          }
+        }}
+      >
+        {({ values, touched, errors, handleChange, handleBlur, handleSubmit, setFieldValue, isSubmitting }) => (
+          <View style={{ gap: 16 }}>
+            <Field
+              label="Full name"
+              value={values.fullName}
+              onChangeText={handleChange("fullName")}
+              onBlur={handleBlur("fullName")}
+              error={touched.fullName ? errors.fullName : undefined}
+            />
+            <Field label="Registered email (read-only)" value={user.email || ""} editable={false} />
+            <Field
+              label="Mobile number"
+              value={values.phone}
+              keyboardType="phone-pad"
+              onChangeText={handleChange("phone")}
+              onBlur={handleBlur("phone")}
+              error={touched.phone ? errors.phone : undefined}
+            />
+            <Text style={s.heading}>Style preference</Text>
+            <View style={s.row}>
+              {["Smart Casual", "Formal", "Streetwear", "Ethnic"].map((style) => (
+                <Pressable
+                  key={style}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: values.stylePreference === style }}
+                  onPress={() => { void setFieldValue("stylePreference", style); }}
+                  style={[s.pill, values.stylePreference === style && s.active]}
+                >
+                  <Text style={s.text}>{style}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Text style={s.heading}>Preferred size</Text>
+            <View style={s.row}>
+              {["S", "M", "L", "XL", "XXL"].map((size) => (
+                <Pressable
+                  key={size}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: values.sizePreference === size }}
+                  onPress={() => { void setFieldValue("sizePreference", size); }}
+                  style={[s.pill, values.sizePreference === size && s.active]}
+                >
+                  <Text style={s.text}>{size}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <ErrorBox message={error} />
+            {notice ? <Text style={s.muted}>{notice}</Text> : null}
+            <Button title="Save changes" busy={isSubmitting} onPress={() => handleSubmit()} />
+          </View>
+        )}
+      </Formik>
+    </ScrollView>
+  );
+}
+
 export function AddressForm({ navigate }: { navigate: Navigate }) {
   const dispatch = useAppDispatch();
   const user = useAppSelector((x) => x.auth.user);

@@ -11,6 +11,7 @@ import { Home, Catalog, ProductDetail } from "./src/screens/Shop";
 import {
   Account,
   Login,
+  EditProfile,
   AddressForm,
   LocationPicker,
 } from "./src/screens/Account";
@@ -111,6 +112,9 @@ function Application() {
       break;
     case "Login":
       screen = <Login navigate={navigate} />;
+      break;
+    case "EditProfile":
+      screen = <EditProfile navigate={navigate} />;
       break;
     case "Addresses":
       screen = <Addresses navigate={navigate} />;
