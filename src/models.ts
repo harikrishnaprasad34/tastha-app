@@ -71,6 +71,7 @@ export type AddressInput = Omit<Address, "_id">;
 export interface DeliveryLocation {
   label: string;
   pinCode?: string;
+  addressId?: string;
   lat?: number;
   lng?: number;
   accuracy?: number;

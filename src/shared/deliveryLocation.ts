@@ -58,6 +58,7 @@ export function locationFromAddress(address: Address): DeliveryLocation {
   return {
     label,
     pinCode: address.pinCode,
+    addressId: address._id,
     ...(typeof address.lat === "number" &&
     typeof address.lng === "number" &&
     Number.isFinite(address.lat) &&
@@ -91,6 +92,11 @@ export function parseSavedLocation(raw: string | null): DeliveryLocation | null 
     return {
       label: data.label.trim().slice(0, 180),
       pinCode: data.pinCode,
+      ...(typeof data.addressId === "string" &&
+      data.addressId.length > 0 &&
+      data.addressId.length <= 200
+        ? { addressId: data.addressId }
+        : {}),
       ...coordinates,
       ...(typeof data.accuracy === "number" &&
       Number.isFinite(data.accuracy) &&

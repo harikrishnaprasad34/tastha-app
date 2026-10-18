@@ -4,7 +4,7 @@ import { Formik } from "formik";
 import * as Yup from "yup";
 import * as Location from "expo-location";
 import { saveDeliveryLocation } from "../api/deliveryLocation";
-import { describeDetectedPlace, validPinCode } from "../shared/deliveryLocation";
+import { describeDetectedPlace, locationFromAddress, validPinCode } from "../shared/deliveryLocation";
 import { api, session } from "../api/runtime";
 import { API_URL } from "../config";
 import type { Session } from "../models";
@@ -172,7 +172,10 @@ export function AddressForm({ navigate }: { navigate: Navigate }) {
         onSubmit={async (values) => {
           try {
             setError("");
-            await dispatch(saveAddress(values)).unwrap();
+            const saved = await dispatch(saveAddress(values)).unwrap();
+            const delivery = locationFromAddress(saved);
+            await saveDeliveryLocation(delivery);
+            dispatch(actions.setLocation(delivery));
             navigate("Addresses");
           } catch (e) {
             setError(

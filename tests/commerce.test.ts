@@ -11,6 +11,7 @@ import {
   changeBag,
   fetchBag,
   fetchCatalog,
+  fetchAddresses,
   actions,
 } from "../src/state/store";
 import type { Session, Product, Cart, Quote, Address } from "../src/models";
@@ -392,7 +393,37 @@ describe("first-run delivery flow", () => {
   it("supports a manual or saved-address fallback without coordinates", () => {
     const place = locationFromAddress(address);
     expect(place.pinCode).toBe("500001");
+    expect(place.addressId).toBe("a1");
     expect(place.label).toContain("Sample road");
     expect(place.lat).toBeUndefined();
+  });
+});
+
+describe("checkout and saved delivery area stay synchronized", () => {
+  it("restores the previously selected address, even when not the account default", async () => {
+    const manager = createSessionManager(storage());
+    const other = { ...address, _id: "a2", streetAddress: "Other area", pinCode: "500002", isDefault: true };
+    const api = {
+      request: vi.fn(async () => ({ addresses: [other, address] })),
+    } as unknown as ReturnType<typeof createApiClient>;
+    const appStore = buildStore({ api, session: manager });
+    const saved = locationFromAddress(address);
+    expect(parseSavedLocation(JSON.stringify(saved))?.addressId).toBe("a1");
+    appStore.dispatch(actions.setLocation(saved));
+    await appStore.dispatch(fetchAddresses());
+    expect(appStore.getState().commerce.selectedAddressId).toBe("a1");
+  });
+  it("does not choose a default checkout address in a different PIN", async () => {
+    const manager = createSessionManager(storage());
+    const api = {
+      request: vi.fn(async () => ({ addresses: [address] })),
+    } as unknown as ReturnType<typeof createApiClient>;
+    const appStore = buildStore({ api, session: manager });
+    appStore.dispatch(actions.setLocation({ label: "Different street", pinCode: "500034" }));
+    await appStore.dispatch(fetchAddresses());
+    expect(appStore.getState().commerce.selectedAddressId).toBeNull();
+    appStore.dispatch(actions.selectAddress("a1"));
+    appStore.dispatch(actions.setLocation({ label: "New locality", pinCode: "500034" }));
+    expect(appStore.getState().commerce.selectedAddressId).toBeNull();
   });
 });

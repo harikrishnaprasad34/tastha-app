@@ -159,13 +159,19 @@ export const fetchWishlist = thunk(
 );
 export const fetchAddresses = thunk(
   "commerce/addresses",
-  async (_, { extra, signal }) => {
+  async (_, { extra, signal, getState }) => {
     const r = await extra.api.request<{ addresses: Address[] }>(
       "/users/addresses",
       { auth: "required", signal },
     );
     if (!Array.isArray(r.addresses)) throw Error("Addresses are unavailable.");
-    return r.addresses;
+    // Resolve the location after the request, since a customer can switch areas in-flight.
+    const { location } = getState();
+    return {
+      addresses: r.addresses,
+      preferredAddressId: location?.addressId,
+      pinCode: location?.pinCode,
+    };
   },
   { condition: (_, { getState }) => !getState().commerce.pending.addresses },
 );
@@ -330,6 +336,21 @@ const commerce = createSlice({
     },
   },
   extraReducers: (b) => {
+    b.addCase(location.actions.setLocation, (s, a) => {
+      const next = a.payload;
+      if (next?.addressId) {
+        s.selectedAddressId = next.addressId;
+      } else if (
+        !next?.pinCode ||
+        !s.addresses.some(
+          (address) =>
+            address._id === s.selectedAddressId &&
+            address.pinCode === next.pinCode,
+        )
+      ) {
+        s.selectedAddressId = null;
+      }
+    });
     b.addCase(fetchBag.pending, (s, a) => {
       s.pending.bag = a.meta.requestId;
       s.errors.bag = null;
@@ -364,10 +385,27 @@ const commerce = createSlice({
     });
     b.addCase(fetchAddresses.fulfilled, (s, a) => {
       if (s.pending.addresses !== a.meta.requestId) return;
-      s.addresses = a.payload;
-      if (!a.payload.some((x) => x._id === s.selectedAddressId))
-        s.selectedAddressId =
-          a.payload.find((x) => x.isDefault)?._id || a.payload[0]?._id || null;
+      s.addresses = a.payload.addresses;
+      const { addresses, preferredAddressId, pinCode } = a.payload;
+      const isMatching = (id: string | null | undefined) =>
+        addresses.find((address) => address._id === id);
+      const preferred = isMatching(preferredAddressId);
+      const selected = isMatching(s.selectedAddressId);
+      const byPin = pinCode
+        ? addresses.find((address) => address.pinCode === pinCode)
+        : undefined;
+      // Never silently ship to a saved address in a different delivery PIN.
+      s.selectedAddressId =
+        preferred?._id ||
+        (selected && (!pinCode || selected.pinCode === pinCode)
+          ? selected._id
+          : undefined) ||
+        byPin?._id ||
+        (!pinCode
+          ? addresses.find((address) => address.isDefault)?._id ||
+            addresses[0]?._id
+          : undefined) ||
+        null;
       delete s.pending.addresses;
     });
     b.addCase(fetchAddresses.rejected, (s, a) => {
