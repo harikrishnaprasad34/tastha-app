@@ -18,6 +18,21 @@ export function PaymentStatus({
   id?: string;
   navigate: Navigate;
 }) {
+  return (
+    <PaymentStatusForOrder
+      key={id || "saved-attempt"}
+      id={id}
+      navigate={navigate}
+    />
+  );
+}
+function PaymentStatusForOrder({
+  id,
+  navigate,
+}: {
+  id?: string;
+  navigate: Navigate;
+}) {
   const [order, setOrder] = useState<Order | null>(null),
     [resolution, setResolution] = useState(""),
     [loading, setLoading] = useState(true),
@@ -113,6 +128,8 @@ export function PaymentStatus({
         onPress={() => {
           setLoading(true);
           setError("");
+          setOrder(null);
+          setResolution("");
           setRetry((x) => x + 1);
         }}
       />

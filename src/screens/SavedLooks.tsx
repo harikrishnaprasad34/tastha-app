@@ -15,7 +15,7 @@ interface Look {
   _id: string;
   title: string;
   occasion?: string;
-  items?: { product: Product | null }[];
+  items?: { product: Product | null; size?: string; color?: string }[];
 }
 export function SavedLooks({ navigate }: { navigate: Navigate }) {
   const [looks, setLooks] = useState<Look[]>([]),
@@ -93,7 +93,13 @@ export function SavedLooks({ navigate }: { navigate: Navigate }) {
           {look.occasion ? <Text style={s.muted}>{look.occasion}</Text> : null}
           {look.items?.map((item, i) =>
             item.product ? (
-              <ProductCard key={i} product={item.product} navigate={navigate} />
+              <View key={i}>
+                <ProductCard product={item.product} navigate={navigate} />
+                <Text style={s.muted}>
+                  Size: {item.size || "Unavailable"} · Colour:{" "}
+                  {item.color || "Unavailable"}
+                </Text>
+              </View>
             ) : (
               <Text key={i} style={s.muted}>
                 Product no longer available

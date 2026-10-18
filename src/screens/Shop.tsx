@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   FlatList,
   Image,
@@ -287,12 +287,20 @@ export function Catalog({
   search,
   sort,
   maxPrice,
+  minPrice,
+  brand,
+  offersOnly,
+  onFiltersChange,
 }: {
   navigate: Navigate;
   category?: string;
   search?: string;
   sort?: string;
   maxPrice?: string;
+  minPrice?: string;
+  brand?: string;
+  offersOnly?: boolean;
+  onFiltersChange?: (filter: CatalogFilter) => void;
 }) {
   const dispatch = useAppDispatch();
   const c = useAppSelector((x) => x.catalog);
@@ -301,12 +309,27 @@ export function Catalog({
     c.home?.categories || [],
   );
   const [categoryError, setCategoryError] = useState("");
-  const [filter, setFilter] = useState<CatalogFilter>({
+  const [filter, setFilterState] = useState<CatalogFilter>({
     search: search || "",
     category: resolveCatalogCategory(category, c.home?.categories || []),
     sort: sort || "newest",
     maxPrice: maxPrice || "",
+    minPrice: minPrice || "",
+    brand: brand || "",
+    offersOnly: Boolean(offersOnly),
   });
+  const changedByCustomer = useRef(false);
+  const setFilter: React.Dispatch<React.SetStateAction<CatalogFilter>> = (
+    value,
+  ) => {
+    changedByCustomer.current = true;
+    setFilterState(value);
+  };
+  useEffect(() => {
+    if (!changedByCustomer.current) return;
+    changedByCustomer.current = false;
+    onFiltersChange?.(filter);
+  }, [filter, onFiltersChange]);
   const [query, setQuery] = useState(filter);
   useEffect(() => {
     const controller = new AbortController();
@@ -338,26 +361,29 @@ export function Catalog({
   }, [pin]);
   useEffect(() => {
     const resolved = resolveCatalogCategory(category, categories);
-    setFilter((current) =>
+    setFilterState((current) =>
       current.category === resolved
         ? current
         : { ...current, category: resolved },
     );
   }, [category, categories]);
   useEffect(() => {
-    setFilter((current) =>
+    setFilterState((current) =>
       current.search === (search || "")
         ? current
         : { ...current, search: search || "" },
     );
   }, [search]);
   useEffect(() => {
-    setFilter((current) => ({
+    setFilterState((current) => ({
       ...current,
       sort: sort || "newest",
       maxPrice: maxPrice || "",
+      minPrice: minPrice || "",
+      brand: brand || "",
+      offersOnly: Boolean(offersOnly),
     }));
-  }, [sort, maxPrice]);
+  }, [sort, maxPrice, minPrice, brand, offersOnly]);
   useEffect(() => {
     const timer = setTimeout(() => setQuery(filter), 350);
     return () => clearTimeout(timer);

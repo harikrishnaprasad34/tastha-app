@@ -26,3 +26,39 @@ export function appendCatalogFilters(
   if (filter.brand?.trim()) query.set("brand", filter.brand.trim());
   if (filter.offersOnly) query.set("offersOnly", "true");
 }
+
+export const catalogQueryKeys = [
+  "category",
+  "search",
+  "sort",
+  "maxPrice",
+  "minPrice",
+  "brand",
+  "offersOnly",
+] as const;
+export function catalogRouteFilter(
+  params: Record<string, unknown>,
+): CatalogFilter {
+  const text = (key: string) =>
+    typeof params[key] === "string" ? (params[key] as string) : "";
+  return {
+    search: text("search"),
+    category: text("category"),
+    sort: text("sort") || "newest",
+    maxPrice: text("maxPrice"),
+    minPrice: text("minPrice"),
+    brand: text("brand"),
+    offersOnly: text("offersOnly") === "true",
+  };
+}
+export function catalogRouteParams(filter: CatalogFilter) {
+  return {
+    search: filter.search,
+    category: filter.category,
+    sort: filter.sort,
+    maxPrice: filter.maxPrice,
+    minPrice: filter.minPrice || "",
+    brand: filter.brand || "",
+    offersOnly: filter.offersOnly ? "true" : "",
+  };
+}

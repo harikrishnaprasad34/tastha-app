@@ -8,7 +8,7 @@ export default function Screen() {
   const navigate = useNavigate();
   return (
     <RequireCustomer>
-      <PaymentStatus id={id} navigate={navigate} />
+      <PaymentStatus key={id || "saved-attempt"} id={id} navigate={navigate} />
     </RequireCustomer>
   );
 }

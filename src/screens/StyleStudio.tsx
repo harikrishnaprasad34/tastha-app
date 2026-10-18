@@ -1,3 +1,5 @@
+import { SaveLook } from "../components/SaveLook";
+import { useAppSelector } from "../state";
 import React, { useEffect, useState } from "react";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
@@ -27,6 +29,10 @@ interface Look {
   }[];
 }
 export function StyleStudio({ navigate }: { navigate: Navigate }) {
+  const accountId = useAppSelector((x) => x.auth.user?.id || "guest");
+  return <StudioForAccount key={accountId} navigate={navigate} />;
+}
+function StudioForAccount({ navigate }: { navigate: Navigate }) {
   const { occasion: initial } = useLocalSearchParams<{ occasion?: string }>();
   const [occasions, setOccasions] = useState<
     { _id?: string; slug?: string; title: string }[]
@@ -205,6 +211,13 @@ export function StyleStudio({ navigate }: { navigate: Navigate }) {
               />
             </View>
           ))}
+          <SaveLook
+            key={JSON.stringify(look)}
+            title={look.title}
+            occasion={occasion}
+            productIds={look.items.map((item) => item.productId)}
+            navigate={navigate}
+          />
           <Field
             label="Refine your outfit"
             value={instruction}

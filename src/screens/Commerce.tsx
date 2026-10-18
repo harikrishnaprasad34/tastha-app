@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useRevalidateOnFocus } from "../hooks/useRevalidateOnFocus";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, Text, View, Pressable, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { shareInvoice } from "../api/invoice";
@@ -422,9 +423,12 @@ export function Orders({ navigate }: { navigate: Navigate }) {
     () => filterCustomerOrders(orders, query, view, sort),
     [orders, query, view, sort],
   );
-  useEffect(() => {
-    if (user) dispatch(fetchOrders());
-  }, [dispatch, user]);
+  useRevalidateOnFocus(
+    useCallback(() => {
+      if (!user) return;
+      void dispatch(fetchOrders());
+    }, [dispatch, user]),
+  );
   if (!user) return <SignIn navigate={navigate} />;
   return (
     <ScrollView
@@ -528,32 +532,38 @@ export function OrderDetail({
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
 
-  useEffect(() => {
-    if (!id || !user) return;
-    const controller = new AbortController();
-    setLoading(true);
-    setError("");
-    api
-      .request<{ order: Order }>("/orders/" + encodeURIComponent(id), {
-        auth: "required",
-        signal: controller.signal,
-      })
-      .then((response) => {
-        if (!response.order?._id) throw Error("Order details are unavailable.");
-        if (!controller.signal.aborted) setOrder(response.order);
-      })
-      .catch((reason) => {
-        if (!controller.signal.aborted) {
-          setError(
-            reason instanceof Error ? reason.message : "Could not load order.",
-          );
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-    return () => controller.abort();
-  }, [id, user, revision]);
+  useRevalidateOnFocus(
+    useCallback(() => {
+      void revision;
+      if (!id || !user) return;
+      const controller = new AbortController();
+      setLoading(true);
+      setError("");
+      api
+        .request<{ order: Order }>("/orders/" + encodeURIComponent(id), {
+          auth: "required",
+          signal: controller.signal,
+        })
+        .then((response) => {
+          if (!response.order?._id)
+            throw Error("Order details are unavailable.");
+          if (!controller.signal.aborted) setOrder(response.order);
+        })
+        .catch((reason) => {
+          if (!controller.signal.aborted) {
+            setError(
+              reason instanceof Error
+                ? reason.message
+                : "Could not load order.",
+            );
+          }
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setLoading(false);
+        });
+      return () => controller.abort();
+    }, [id, user, revision]),
+  );
 
   if (!user) return <SignIn navigate={navigate} />;
   const cancel = () => {

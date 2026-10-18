@@ -7,6 +7,26 @@ export interface Attempt {
   idempotencyKey: string;
   merchantOrderId?: string;
 }
+export interface RecoveryResult {
+  resolution: string;
+  order?: Order;
+  canRetry?: boolean;
+  merchantOrderId?: string;
+  paymentStatus?: string;
+  orderStatus?: string;
+}
+export function isTerminalUnpaid(
+  result: RecoveryResult,
+  merchantOrderId: string,
+) {
+  return (
+    result.resolution === "FAILED" &&
+    result.canRetry === false &&
+    result.merchantOrderId === merchantOrderId &&
+    result.order?.orderNumber === merchantOrderId &&
+    result.order.paymentStatus === "FAILED"
+  );
+}
 export interface AttemptStorage {
   read(): Promise<Attempt | null>;
   write(value: Attempt): Promise<void>;
@@ -36,11 +56,7 @@ export function createCheckout(
     if (sessionIsCurrent?.() === false)
       throw Error("Your shopping session changed.");
     if (!attempt?.merchantOrderId) return null;
-    const result = await api.request<{
-      resolution: string;
-      order?: Order;
-      canRetry?: boolean;
-    }>(
+    const result = await api.request<RecoveryResult>(
       "/payment/razorpay/order/" +
         encodeURIComponent(attempt.merchantOrderId) +
         "/status",
@@ -49,9 +65,10 @@ export function createCheckout(
     if (sessionIsCurrent?.() === false)
       throw Error("Your shopping session changed.");
     if (
-      result.resolution === "CONFIRMED" &&
-      result.order?.orderNumber &&
-      result.order.paymentStatus === "COMPLETED"
+      (result.resolution === "CONFIRMED" &&
+        result.order?.orderNumber &&
+        result.order.paymentStatus === "COMPLETED") ||
+      isTerminalUnpaid(result, attempt.merchantOrderId)
     )
       await storage.clear();
     return result;

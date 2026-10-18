@@ -5,7 +5,7 @@ import {
   useGlobalSearchParams,
   type Href,
 } from "expo-router";
-import { loginPath } from "../navigation/authReturn";
+import { loginPath, protectedReturnTo } from "../navigation/authReturn";
 import { readDeliveryLocation } from "../api/deliveryLocation";
 import { session } from "../api/runtime";
 import { actions } from "../state/store";
@@ -52,14 +52,9 @@ export function RequireCustomer({ children }: React.PropsWithChildren) {
   const user = useAppSelector((x) => x.auth.user);
   const pathname = usePathname();
   const params = useGlobalSearchParams();
-  const query = new URLSearchParams();
-  for (const key of ["id"])
-    if (typeof params[key] === "string") query.set(key, params[key]);
   return user ? (
     <React.Fragment key={user.id}>{children}</React.Fragment>
   ) : (
-    <Redirect
-      href={loginPath(pathname + (query.size ? "?" + query : "")) as Href}
-    />
+    <Redirect href={loginPath(protectedReturnTo(pathname, params)) as Href} />
   );
 }
