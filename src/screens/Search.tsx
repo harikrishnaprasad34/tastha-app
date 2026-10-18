@@ -66,13 +66,12 @@ export function Search({ navigate }: { navigate: Navigate }) {
   }, [query, retry]);
 
   function update(next: string) {
+    if (next === query) return;
     setQuery(next);
     setError("");
+    setProducts([]);
+    setCategories([]);
     setBusy(next.trim().length >= 2);
-    if (next.trim().length < 2) {
-      setProducts([]);
-      setCategories([]);
-    }
   }
   const terms = (query.trim().length < 2
     ? [...(suggestions.recent || []), ...(suggestions.trending || [])]
