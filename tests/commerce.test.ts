@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { describeDetectedPlace, locationFromAddress, parseSavedLocation } from "../src/shared/deliveryLocation";
 import { createSessionManager } from "../src/api/session";
 import { createApiClient } from "../src/api/client";
+import { customerLoginPayload } from "../src/api/authPayload";
 import { createCheckout, type Attempt } from "../src/api/checkout";
 import { mergeProducts, productImages, imageUrl } from "../src/shared/catalog";
 import { getVariantAvailability } from "../src/shared/productAvailability";
@@ -579,5 +580,55 @@ describe("location-sensitive homepage requests", () => {
     await b;
     left.resolve({ success: true });
     await a;
+  });
+});
+
+describe("backend-compatible customer account and coupon requests", () => {
+  it("submits registered email and the legacy identifier without changing the password", () => {
+    expect(customerLoginPayload("  TEST@EXAMPLE.COM  ", "Example pass")).toEqual({
+      email: "test@example.com",
+      identifier: "test@example.com",
+      password: "Example pass",
+    });
+    expect(() => customerLoginPayload("9999999999", "pass")).toThrow("registered email");
+  });
+  it("sends both backend-supported refresh-token field names", async () => {
+    const manager = createSessionManager(storage());
+    await manager.save(customer);
+    let refreshBody: Record<string, string> | undefined;
+    const fetcher = vi.fn(async (url: RequestInfo | URL, options?: RequestInit) => {
+      if (String(url).endsWith("/auth/refresh-token")) {
+        refreshBody = JSON.parse(String(options?.body));
+        return response({ accessToken: "next", refreshToken: "next-refresh" });
+      }
+      return (options?.headers as Record<string, string>)?.Authorization === "Bearer next"
+        ? response({ success: true })
+        : response({ message: "expired" }, 401);
+    });
+    await createApiClient("https://example.test", manager, fetcher).request(
+      "/cart", { auth: "required" },
+    );
+    expect(refreshBody).toMatchObject({
+      token: "refresh",
+      refreshToken: "refresh",
+    });
+  });
+  it("includes cartId for coupon apply and remove using the existing backend", async () => {
+    const manager = createSessionManager(storage());
+    await manager.save(customer);
+    const request = vi.fn(async () => ({ cart }));
+    const appStore = buildStore({
+      api: { request } as unknown as ReturnType<typeof createApiClient>,
+      session: manager,
+    });
+    appStore.dispatch(actions.replaceBag(cart));
+    await appStore.dispatch(changeBag({ kind: "coupon", couponCode: " SAVE10 " }));
+    expect(request).toHaveBeenCalledWith("/cart/apply-coupon", expect.objectContaining({
+      body: { cartId: "c1", couponCode: "SAVE10" },
+    }));
+    await appStore.dispatch(changeBag({ kind: "removeCoupon" }));
+    expect(request).toHaveBeenCalledWith("/cart/remove-coupon", expect.objectContaining({
+      body: { cartId: "c1" },
+    }));
   });
 });

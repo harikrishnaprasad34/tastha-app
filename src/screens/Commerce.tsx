@@ -134,6 +134,17 @@ export function Bag({ navigate }: { navigate: Navigate }) {
       <ErrorBox message={error} />
       {bag?.items.length ? (
         <>
+          {bag.appliedCoupon ? (
+            <View style={s.panel}>
+              <Text style={s.text}>Applied coupon: {bag.appliedCoupon}</Text>
+              <Button
+                title="Remove coupon"
+                outline
+                busy={busy}
+                onPress={() => update({ kind: "removeCoupon" })}
+              />
+            </View>
+          ) : null}
           <Field
             label="Coupon code"
             value={coupon}
@@ -141,9 +152,10 @@ export function Bag({ navigate }: { navigate: Navigate }) {
             autoCapitalize="characters"
           />
           <Button
-            title="Apply coupon"
+            title={bag.appliedCoupon ? "Change coupon" : "Apply coupon"}
             outline
             busy={busy}
+            disabled={!coupon.trim()}
             onPress={() => update({ kind: "coupon", couponCode: coupon })}
           />
           <Text style={s.price}>Bag total {money(bag.totalAmount)}</Text>

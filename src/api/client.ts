@@ -75,7 +75,11 @@ export function createApiClient(
         result = await raw("/auth/refresh-token", {
           method: "POST",
           auth: "none",
-          body: { refreshToken: old.refreshToken },
+          // Deployed backend versions accept either "token" or "refreshToken".
+          body: {
+            token: old.refreshToken,
+            refreshToken: old.refreshToken,
+          },
         });
       } catch (error) {
         // A network error, timeout or server failure must not log the customer out.

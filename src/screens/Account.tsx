@@ -6,6 +6,7 @@ import * as Location from "expo-location";
 import { saveDeliveryLocation } from "../api/deliveryLocation";
 import { describeDetectedPlace, locationFromAddress, validPinCode } from "../shared/deliveryLocation";
 import { api, session } from "../api/runtime";
+import { customerLoginPayload } from "../api/authPayload";
 import { API_URL } from "../config";
 import type { Session } from "../models";
 import { useAppDispatch, useAppSelector } from "../state";
@@ -20,11 +21,16 @@ export function Login({ navigate }: { navigate: Navigate }) {
       contentContainerStyle={s.content}
     >
       <Text style={s.title}>Welcome to Tastha</Text>
-      <Text style={s.muted}>Sign in to your existing customer account.</Text>
+      <Text style={s.muted}>
+        Sign in using the registered email for your existing Tastha account.
+      </Text>
       <Formik
         initialValues={{ identifier: "", password: "" }}
         validationSchema={Yup.object({
-          identifier: Yup.string().trim().required("Enter your email or phone"),
+          identifier: Yup.string()
+            .trim()
+            .email("Enter a valid registered email address")
+            .required("Enter your email address"),
           password: Yup.string().required("Enter your password"),
         })}
         onSubmit={async (values) => {
@@ -34,7 +40,7 @@ export function Login({ navigate }: { navigate: Navigate }) {
             const result = await api.request<Session>("/auth/login", {
               auth: "none",
               method: "POST",
-              body: values,
+              body: customerLoginPayload(values.identifier, values.password),
             });
             await session.save(result, revision, true);
             navigate("Account");
@@ -54,7 +60,7 @@ export function Login({ navigate }: { navigate: Navigate }) {
         }) => (
           <View style={{ gap: 16 }}>
             <Field
-              label="Email or phone"
+              label="Email address"
               value={values.identifier}
               onChangeText={handleChange("identifier")}
               onBlur={handleBlur("identifier")}
@@ -86,15 +92,22 @@ export function Login({ navigate }: { navigate: Navigate }) {
 export function Account({ navigate }: { navigate: Navigate }) {
   const user = useAppSelector((x) => x.auth.user);
   async function logout() {
-    const token = session.get()?.accessToken;
+    const prior = session.get();
     try {
       await session.clear();
-      if (token)
+      if (prior) {
+        // Local sign-out must succeed even when the network is unavailable.
+        // The backend revokes refresh tokens from the JSON body, not the header.
         void fetch(API_URL + "/auth/logout", {
           method: "POST",
-          headers: { Authorization: "Bearer " + token },
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            token: prior.refreshToken,
+            userId: prior.user.id,
+          }),
           signal: AbortSignal.timeout(10000),
         }).catch(() => {});
+      }
     } catch {
       Alert.alert(
         "Sign-out storage",

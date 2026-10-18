@@ -213,23 +213,32 @@ type BagMutation =
       variantSku?: string;
     }
   | { kind: "quantity"; itemId: string; quantity: number }
-  | { kind: "coupon"; couponCode: string };
+  | { kind: "coupon"; couponCode: string }
+  | { kind: "removeCoupon" };
 export const changeBag = thunk(
   "commerce/changeBag",
   async (arg: BagMutation, { extra, getState }) => {
     const bag = getState().commerce.bag;
+    if (!bag?._id && arg.kind !== "add")
+      throw Error("Your bag could not be identified. Refresh it and retry.");
     const path =
       arg.kind === "add"
         ? "/cart/add"
         : arg.kind === "quantity"
           ? "/cart/update"
-          : "/cart/apply-coupon";
+          : arg.kind === "coupon"
+            ? "/cart/apply-coupon"
+            : "/cart/remove-coupon";
     const body =
       arg.kind === "add"
-        ? { ...arg, quantity: 1 }
+        ? { productId: arg.productId, quantity: 1,
+            selectedSize: arg.selectedSize, selectedColor: arg.selectedColor,
+            variantSku: arg.variantSku }
         : arg.kind === "quantity"
-          ? { cartId: bag?._id, itemId: arg.itemId, quantity: arg.quantity }
-          : { couponCode: arg.couponCode };
+          ? { cartId: bag!._id, itemId: arg.itemId, quantity: arg.quantity }
+          : arg.kind === "coupon"
+            ? { cartId: bag!._id, couponCode: arg.couponCode.trim() }
+            : { cartId: bag!._id };
     return cartFrom(
       await extra.api.request<{ cart: Cart }>(path, {
         method: "POST",
