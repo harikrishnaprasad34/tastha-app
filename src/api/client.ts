@@ -1,4 +1,3 @@
-import type { Session } from "../models";
 import type { SessionManager } from "./session";
 export class ApiError extends Error {
   constructor(
@@ -110,7 +109,11 @@ export function createApiClient(
           response.status,
         );
       await session.save(
-        { ...old, accessToken: data.accessToken, refreshToken: data.refreshToken },
+        {
+          ...old,
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
+        },
         expected,
       );
     })();

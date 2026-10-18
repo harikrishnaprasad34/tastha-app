@@ -1,3 +1,4 @@
+import { routeFor } from "../src/navigation/routes";
 import { describe, it, expect, vi } from "vitest";
 import {
   describeDetectedPlace,
@@ -8,7 +9,10 @@ import {
 import { createSessionManager } from "../src/api/session";
 import { createApiClient } from "../src/api/client";
 import { loadStorefrontHome } from "../src/api/home";
-import { filterCustomerOrders, orderCanBeCancelled } from "../src/shared/orders";
+import {
+  filterCustomerOrders,
+  orderCanBeCancelled,
+} from "../src/shared/orders";
 import { normalizeProductPage } from "../src/shared/catalogPage";
 import { customerLoginPayload } from "../src/api/authPayload";
 import { mergeProfileUser } from "../src/api/profile";
@@ -25,7 +29,14 @@ import {
   fetchHome,
   actions,
 } from "../src/state/store";
-import type { Session, Product, Cart, Quote, Address, Order } from "../src/models";
+import type {
+  Session,
+  Product,
+  Cart,
+  Quote,
+  Address,
+  Order,
+} from "../src/models";
 const customer: Session = {
   accessToken: "access",
   refreshToken: "refresh",
@@ -101,19 +112,25 @@ describe("secure sessions and requests", () => {
     await manager.save(customer);
     const lateResponse = deferred<Response>();
     let refreshCount = 0;
-    const fetcher = vi.fn(async (url: RequestInfo | URL, options?: RequestInit) => {
-      const path = String(url);
-      if (path.endsWith("/auth/refresh-token")) {
-        refreshCount++;
-        return response({ accessToken: "new-access", refreshToken: "new-refresh" });
-      }
-      const token = (options?.headers as Record<string,string>).Authorization;
-      if (path.endsWith("/cart") && token === "Bearer access")
-        return lateResponse.promise;
-      return token === "Bearer new-access"
-        ? response({ success: true })
-        : response({ message: "Expired" }, 401);
-    });
+    const fetcher = vi.fn(
+      async (url: RequestInfo | URL, options?: RequestInit) => {
+        const path = String(url);
+        if (path.endsWith("/auth/refresh-token")) {
+          refreshCount++;
+          return response({
+            accessToken: "new-access",
+            refreshToken: "new-refresh",
+          });
+        }
+        const token = (options?.headers as Record<string, string>)
+          .Authorization;
+        if (path.endsWith("/cart") && token === "Bearer access")
+          return lateResponse.promise;
+        return token === "Bearer new-access"
+          ? response({ success: true })
+          : response({ message: "Expired" }, 401);
+      },
+    );
     const api = createApiClient("https://example.test", manager, fetcher);
     const first = api.request("/cart", { auth: "required" });
     await api.request("/wishlist", { auth: "required" });
@@ -131,7 +148,9 @@ describe("secure sessions and requests", () => {
         ? Promise.reject(Error("offline"))
         : response({ message: "Access expired" }, 401),
     );
-    await expect(api.request("/cart", { auth: "required" })).rejects.toThrow("Cannot reach");
+    await expect(api.request("/cart", { auth: "required" })).rejects.toThrow(
+      "Cannot reach",
+    );
     expect(manager.get()?.user.id).toBe(customer.user.id);
     expect(deviceStorage.remove).not.toHaveBeenCalled();
   });
@@ -139,9 +158,14 @@ describe("secure sessions and requests", () => {
     const manager = createSessionManager(storage());
     await manager.save(customer);
     const api = createApiClient("https://example.test", manager, async (url) =>
-      response({ message: "Token invalid" }, String(url).endsWith("/auth/refresh-token") ? 401 : 401),
+      response(
+        { message: "Token invalid" },
+        String(url).endsWith("/auth/refresh-token") ? 401 : 401,
+      ),
     );
-    await expect(api.request("/cart", { auth: "required" })).rejects.toThrow("session expired");
+    await expect(api.request("/cart", { auth: "required" })).rejects.toThrow(
+      "session expired",
+    );
     expect(manager.get()).toBeNull();
   });
   it("keeps device delivery location on login and sign-out", async () => {
@@ -150,7 +174,9 @@ describe("secure sessions and requests", () => {
       api: {} as ReturnType<typeof createApiClient>,
       session: manager,
     });
-    appStore.dispatch(actions.setLocation({ label: "Road 12", pinCode: "500034" }));
+    appStore.dispatch(
+      actions.setLocation({ label: "Road 12", pinCode: "500034" }),
+    );
     await manager.save(customer, manager.revision(), true);
     expect(appStore.getState().location?.label).toBe("Road 12");
     await manager.clear();
@@ -370,20 +396,35 @@ describe("checkout security", () => {
     const { checkout, gateway } = setup(request);
     gateway.mockRejectedValueOnce(Error("payment UI closed"));
     await expect(checkout.pay(input)).rejects.toThrow("payment UI closed");
-    await expect(checkout.pay(input)).rejects.toThrow("earlier payment attempt");
-    expect(request.mock.calls.filter((call) => call[0] === "/payment/razorpay/order")).toHaveLength(1);
+    await expect(checkout.pay(input)).rejects.toThrow(
+      "earlier payment attempt",
+    );
+    expect(
+      request.mock.calls.filter(
+        (call) => call[0] === "/payment/razorpay/order",
+      ),
+    ).toHaveLength(1);
   });
   it("does not trust an unfinished order marked confirmed by the status endpoint", async () => {
     const request = vi.fn(async (path: string) =>
       path.endsWith("/status")
-        ? { resolution: "CONFIRMED", order: { orderNumber: "T2", paymentStatus: "PENDING" } }
+        ? {
+            resolution: "CONFIRMED",
+            order: { orderNumber: "T2", paymentStatus: "PENDING" },
+          }
         : gatewayOrder,
     );
     const { checkout, gateway } = setup(request);
     gateway.mockRejectedValueOnce(Error("payment UI closed"));
     await expect(checkout.pay(input)).rejects.toThrow("payment UI closed");
-    await expect(checkout.pay(input)).rejects.toThrow("earlier payment attempt");
-    expect(request.mock.calls.filter((call) => call[0] === "/payment/razorpay/order")).toHaveLength(1);
+    await expect(checkout.pay(input)).rejects.toThrow(
+      "earlier payment attempt",
+    );
+    expect(
+      request.mock.calls.filter(
+        (call) => call[0] === "/payment/razorpay/order",
+      ),
+    ).toHaveLength(1);
   });
   it("blocks duplicate payment clicks", async () => {
     const wait = deferred<unknown>();
@@ -428,23 +469,32 @@ it("never substitutes another colour when the selected variant has no photo", ()
 
 describe("first-run delivery flow", () => {
   it("restores a confirmed address but rejects bad PIN or malformed data", () => {
-    expect(parseSavedLocation(JSON.stringify({
-      label: "Road No 12, Banjara Hills",
-      pinCode: "500034",
-      lat: 17.41,
-      lng: 78.44,
-    }))?.label).toBe("Road No 12, Banjara Hills");
+    expect(
+      parseSavedLocation(
+        JSON.stringify({
+          label: "Road No 12, Banjara Hills",
+          pinCode: "500034",
+          lat: 17.41,
+          lng: 78.44,
+        }),
+      )?.label,
+    ).toBe("Road No 12, Banjara Hills");
     expect(parseSavedLocation('{"label":"Area","pinCode":"123"}')).toBeNull();
     expect(parseSavedLocation("not-json")).toBeNull();
   });
   it("uses a detected street instead of broad city or area only", () => {
-    expect(describeDetectedPlace({
-      streetNumber: "12",
-      street: "Road",
-      district: "Banjara Hills",
-      city: "Hyderabad",
-      postalCode: "500034",
-    }, { displayAddress: "Hyderabad", pinCode: "500001" })).toEqual({
+    expect(
+      describeDetectedPlace(
+        {
+          streetNumber: "12",
+          street: "Road",
+          district: "Banjara Hills",
+          city: "Hyderabad",
+          postalCode: "500034",
+        },
+        { displayAddress: "Hyderabad", pinCode: "500001" },
+      ),
+    ).toEqual({
       label: "12 Road, Banjara Hills, Hyderabad",
       pinCode: "500034",
     });
@@ -461,7 +511,13 @@ describe("first-run delivery flow", () => {
 describe("checkout and saved delivery area stay synchronized", () => {
   it("restores the previously selected address, even when not the account default", async () => {
     const manager = createSessionManager(storage());
-    const other = { ...address, _id: "a2", streetAddress: "Other area", pinCode: "500002", isDefault: true };
+    const other = {
+      ...address,
+      _id: "a2",
+      streetAddress: "Other area",
+      pinCode: "500002",
+      isDefault: true,
+    };
     const api = {
       request: vi.fn(async () => ({ addresses: [other, address] })),
     } as unknown as ReturnType<typeof createApiClient>;
@@ -478,11 +534,15 @@ describe("checkout and saved delivery area stay synchronized", () => {
       request: vi.fn(async () => ({ addresses: [address] })),
     } as unknown as ReturnType<typeof createApiClient>;
     const appStore = buildStore({ api, session: manager });
-    appStore.dispatch(actions.setLocation({ label: "Different street", pinCode: "500034" }));
+    appStore.dispatch(
+      actions.setLocation({ label: "Different street", pinCode: "500034" }),
+    );
     await appStore.dispatch(fetchAddresses());
     expect(appStore.getState().commerce.selectedAddressId).toBeNull();
     appStore.dispatch(actions.selectAddress("a1"));
-    appStore.dispatch(actions.setLocation({ label: "New locality", pinCode: "500034" }));
+    appStore.dispatch(
+      actions.setLocation({ label: "New locality", pinCode: "500034" }),
+    );
     expect(appStore.getState().commerce.selectedAddressId).toBeNull();
   });
 });
@@ -498,7 +558,11 @@ describe("catalog pagination protection", () => {
         if (call === 2) throw Error("Network unavailable");
         return {
           products: [call === 1 ? product : { ...product, _id: "p2" }],
-          pagination: { page: call === 1 ? 1 : 2, total: 40, hasNextPage: true },
+          pagination: {
+            page: call === 1 ? 1 : 2,
+            total: 40,
+            hasNextPage: true,
+          },
         };
       }),
     } as unknown as ReturnType<typeof createApiClient>;
@@ -531,10 +595,15 @@ describe("catalog pagination protection", () => {
 
 describe("homepage images and safe address recovery", () => {
   it("uses only HTTPS banner imagery", () => {
-    expect(imageUrl("https://assets.example.test/banner.png", "https://api.example.test"))
-      .toBe("https://assets.example.test/banner.png");
-    expect(imageUrl("javascript:alert(1)", "https://api.example.test"))
-      .toBeUndefined();
+    expect(
+      imageUrl(
+        "https://assets.example.test/banner.png",
+        "https://api.example.test",
+      ),
+    ).toBe("https://assets.example.test/banner.png");
+    expect(
+      imageUrl("javascript:alert(1)", "https://api.example.test"),
+    ).toBeUndefined();
   });
   it("rejects the saved address when its server PIN changed", async () => {
     const manager = createSessionManager(storage());
@@ -556,17 +625,23 @@ describe("website homepage endpoint parity", () => {
     const api = {
       request: vi.fn(async (path: string) => {
         calls.push(path);
-        if (path.startsWith("/home/banners")) return {
-          banners: [{ title: "Tastha", image: "https://example.com/hero.png" }],
-        };
-        if (path.startsWith("/home/categories")) return {
-          categories: [{ name: "Shirts", slug: "shirts", productCount: 8 }],
-        };
+        if (path.startsWith("/home/banners"))
+          return {
+            banners: [
+              { title: "Tastha", image: "https://example.com/hero.png" },
+            ],
+          };
+        if (path.startsWith("/home/categories"))
+          return {
+            categories: [{ name: "Shirts", slug: "shirts", productCount: 8 }],
+          };
         if (path.startsWith("/home/trending")) return { products: [product] };
-        if (path.startsWith("/home/new-arrivals")) return { products: [product] };
-        if (path.startsWith("/home/occasions")) return {
-          occasions: [{ name: "Wedding", slug: "wedding" }],
-        };
+        if (path.startsWith("/home/new-arrivals"))
+          return { products: [product] };
+        if (path.startsWith("/home/occasions"))
+          return {
+            occasions: [{ name: "Wedding", slug: "wedding" }],
+          };
         throw Error("Unexpected endpoint: " + path);
       }),
     } as unknown as ReturnType<typeof createApiClient>;
@@ -574,12 +649,17 @@ describe("website homepage endpoint parity", () => {
     const result = await appStore.dispatch(fetchHome("500034"));
     expect(result.meta.requestStatus).toBe("fulfilled");
     expect(appStore.getState().catalog.home?.banners?.[0].title).toBe("Tastha");
-    expect(appStore.getState().catalog.home?.categories?.[0].slug).toBe("shirts");
-    expect(appStore.getState().catalog.home?.occasions?.[0].slug).toBe("wedding");
-    expect(appStore.getState().catalog.home?.sections?.map(x => x.id))
-      .toEqual(["trending", "new"]);
+    expect(appStore.getState().catalog.home?.categories?.[0].slug).toBe(
+      "shirts",
+    );
+    expect(appStore.getState().catalog.home?.occasions?.[0].slug).toBe(
+      "wedding",
+    );
+    expect(
+      appStore.getState().catalog.home?.sections?.map((x) => x.id),
+    ).toEqual(["trending", "new"]);
     expect(calls).toHaveLength(5);
-    expect(calls.every(path => !path.includes("/home/discovery"))).toBe(true);
+    expect(calls.every((path) => !path.includes("/home/discovery"))).toBe(true);
   });
   it("renders available sections when one CMS endpoint fails", async () => {
     const api = {
@@ -595,7 +675,9 @@ describe("website homepage endpoint parity", () => {
   });
   it("rejects a fully unavailable homepage instead of showing invented content", async () => {
     const api = {
-      request: vi.fn(async () => { throw Error("Offline"); }),
+      request: vi.fn(async () => {
+        throw Error("Offline");
+      }),
     } as unknown as ReturnType<typeof createApiClient>;
     await expect(loadStorefrontHome(api, "")).rejects.toThrow("Cannot load");
   });
@@ -623,28 +705,39 @@ describe("website homepage endpoint parity", () => {
 
 describe("backend-compatible customer account and coupon requests", () => {
   it("submits registered email and the legacy identifier without changing the password", () => {
-    expect(customerLoginPayload("  TEST@EXAMPLE.COM  ", "Example pass")).toEqual({
+    expect(
+      customerLoginPayload("  TEST@EXAMPLE.COM  ", "Example pass"),
+    ).toEqual({
       email: "test@example.com",
       identifier: "test@example.com",
       password: "Example pass",
     });
-    expect(() => customerLoginPayload("9999999999", "pass")).toThrow("registered email");
+    expect(() => customerLoginPayload("9999999999", "pass")).toThrow(
+      "registered email",
+    );
   });
   it("sends both backend-supported refresh-token field names", async () => {
     const manager = createSessionManager(storage());
     await manager.save(customer);
     let refreshBody: Record<string, string> | undefined;
-    const fetcher = vi.fn(async (url: RequestInfo | URL, options?: RequestInit) => {
-      if (String(url).endsWith("/auth/refresh-token")) {
-        refreshBody = JSON.parse(String(options?.body));
-        return response({ accessToken: "next", refreshToken: "next-refresh" });
-      }
-      return (options?.headers as Record<string, string>)?.Authorization === "Bearer next"
-        ? response({ success: true })
-        : response({ message: "expired" }, 401);
-    });
+    const fetcher = vi.fn(
+      async (url: RequestInfo | URL, options?: RequestInit) => {
+        if (String(url).endsWith("/auth/refresh-token")) {
+          refreshBody = JSON.parse(String(options?.body));
+          return response({
+            accessToken: "next",
+            refreshToken: "next-refresh",
+          });
+        }
+        return (options?.headers as Record<string, string>)?.Authorization ===
+          "Bearer next"
+          ? response({ success: true })
+          : response({ message: "expired" }, 401);
+      },
+    );
     await createApiClient("https://example.test", manager, fetcher).request(
-      "/cart", { auth: "required" },
+      "/cart",
+      { auth: "required" },
     );
     expect(refreshBody).toMatchObject({
       token: "refresh",
@@ -660,14 +753,22 @@ describe("backend-compatible customer account and coupon requests", () => {
       session: manager,
     });
     appStore.dispatch(actions.replaceBag(cart));
-    await appStore.dispatch(changeBag({ kind: "coupon", couponCode: " SAVE10 " }));
-    expect(request).toHaveBeenCalledWith("/cart/apply-coupon", expect.objectContaining({
-      body: { cartId: "c1", couponCode: "SAVE10" },
-    }));
+    await appStore.dispatch(
+      changeBag({ kind: "coupon", couponCode: " SAVE10 " }),
+    );
+    expect(request).toHaveBeenCalledWith(
+      "/cart/apply-coupon",
+      expect.objectContaining({
+        body: { cartId: "c1", couponCode: "SAVE10" },
+      }),
+    );
     await appStore.dispatch(changeBag({ kind: "removeCoupon" }));
-    expect(request).toHaveBeenCalledWith("/cart/remove-coupon", expect.objectContaining({
-      body: { cartId: "c1" },
-    }));
+    expect(request).toHaveBeenCalledWith(
+      "/cart/remove-coupon",
+      expect.objectContaining({
+        body: { cartId: "c1" },
+      }),
+    );
   });
 });
 
@@ -685,12 +786,14 @@ describe("searchable delivery location", () => {
     expect(detected.label).toBe("Hyderabad");
   });
   it("maps real location suggestions to confirmable delivery addresses", () => {
-    expect(locationFromSearchResult({
-      displayAddress: "Road No 12, Banjara Hills, Hyderabad",
-      pincode: "500034",
-      lat: 17.415,
-      lng: 78.445,
-    })).toMatchObject({
+    expect(
+      locationFromSearchResult({
+        displayAddress: "Road No 12, Banjara Hills, Hyderabad",
+        pincode: "500034",
+        lat: 17.415,
+        lng: 78.445,
+      }),
+    ).toMatchObject({
       label: "Road No 12, Banjara Hills, Hyderabad",
       pinCode: "500034",
       lat: 17.415,
@@ -698,30 +801,65 @@ describe("searchable delivery location", () => {
     });
   });
   it("rejects geocoder placeholders and never invents missing PINs", () => {
-    expect(locationFromSearchResult({
-      formattedAddress: "Selected Location (17.4500, 78.3800)",
-      pincode: "500081",
-    })).toBeNull();
-    expect(locationFromSearchResult({
-      placeName: "Unknown locality",
-      lat: 17,
-      lng: 78,
-    })?.pinCode).toBe("");
+    expect(
+      locationFromSearchResult({
+        formattedAddress: "Selected Location (17.4500, 78.3800)",
+        pincode: "500081",
+      }),
+    ).toBeNull();
+    expect(
+      locationFromSearchResult({
+        placeName: "Unknown locality",
+        lat: 17,
+        lng: 78,
+      })?.pinCode,
+    ).toBe("");
   });
 });
 
 describe("customer orders website parity", () => {
   const orders: Order[] = [
-    { _id: "1", orderNumber: "TA-001", orderStatus: "CONFIRMED", paymentStatus: "COMPLETED", totalAmount: 200, createdAt: "2026-01-01", items: [{ name: "Shirt", quantity: 1 }] },
-    { _id: "2", orderNumber: "TA-002", orderStatus: "DELIVERED", paymentStatus: "COMPLETED", totalAmount: 100, createdAt: "2026-02-01", items: [{ name: "Trousers", quantity: 1 }] },
-    { _id: "3", orderNumber: "TA-003", orderStatus: "CANCELLED", paymentStatus: "REFUNDED", totalAmount: 90, createdAt: "2026-03-01" },
+    {
+      _id: "1",
+      orderNumber: "TA-001",
+      orderStatus: "CONFIRMED",
+      paymentStatus: "COMPLETED",
+      totalAmount: 200,
+      createdAt: "2026-01-01",
+      items: [{ name: "Shirt", quantity: 1 }],
+    },
+    {
+      _id: "2",
+      orderNumber: "TA-002",
+      orderStatus: "DELIVERED",
+      paymentStatus: "COMPLETED",
+      totalAmount: 100,
+      createdAt: "2026-02-01",
+      items: [{ name: "Trousers", quantity: 1 }],
+    },
+    {
+      _id: "3",
+      orderNumber: "TA-003",
+      orderStatus: "CANCELLED",
+      paymentStatus: "REFUNDED",
+      totalAmount: 90,
+      createdAt: "2026-03-01",
+    },
   ];
   it("matches the website's order filters without mutating store data", () => {
     const source = orders.slice();
-    expect(filterCustomerOrders(orders, "", "ACTIVE", "NEWEST").map(o => o._id)).toEqual(["1"]);
-    expect(filterCustomerOrders(orders, "", "DELIVERED", "NEWEST").map(o => o._id)).toEqual(["2"]);
-    expect(filterCustomerOrders(orders, "shirt", "ALL", "NEWEST").map(o => o._id)).toEqual(["1"]);
-    expect(filterCustomerOrders(orders, "ta-00", "ALL", "NEWEST").map(o => o._id)).toEqual(["3", "2", "1"]);
+    expect(
+      filterCustomerOrders(orders, "", "ACTIVE", "NEWEST").map((o) => o._id),
+    ).toEqual(["1"]);
+    expect(
+      filterCustomerOrders(orders, "", "DELIVERED", "NEWEST").map((o) => o._id),
+    ).toEqual(["2"]);
+    expect(
+      filterCustomerOrders(orders, "shirt", "ALL", "NEWEST").map((o) => o._id),
+    ).toEqual(["1"]);
+    expect(
+      filterCustomerOrders(orders, "ta-00", "ALL", "NEWEST").map((o) => o._id),
+    ).toEqual(["3", "2", "1"]);
     expect(orders).toEqual(source);
   });
   it("requires a confirmation step for early-status cancellation", () => {
@@ -748,8 +886,12 @@ describe("saved profile integration", () => {
     });
   });
   it("rejects a response for another account", () => {
-    expect(() => mergeProfileUser(customer.user, { _id: "other" })).toThrow("different account");
-    expect(() => mergeProfileUser(customer.user, { id: "other" })).toThrow("different account");
+    expect(() => mergeProfileUser(customer.user, { _id: "other" })).toThrow(
+      "different account",
+    );
+    expect(() => mergeProfileUser(customer.user, { id: "other" })).toThrow(
+      "different account",
+    );
   });
 });
 
@@ -761,17 +903,54 @@ describe("website products endpoint compatibility", () => {
       pagination: { page: 1, limit: 20, total: 22, totalPages: 2 },
     };
     expect(normalizeProductPage(payload, 1).pagination.hasNextPage).toBe(true);
-    expect(normalizeProductPage({
-      ...payload,
-      pagination: { ...payload.pagination, page: 2 },
-    }, 2).pagination.hasNextPage).toBe(false);
+    expect(
+      normalizeProductPage(
+        {
+          ...payload,
+          pagination: { ...payload.pagination, page: 2 },
+        },
+        2,
+      ).pagination.hasNextPage,
+    ).toBe(false);
   });
   it("handles empty backend results and rejects invalid page numbers", () => {
-    expect(normalizeProductPage({
-      success: true, products: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
-    }, 1).pagination.hasNextPage).toBe(false);
-    expect(() => normalizeProductPage({
-      success: true, products: [product], pagination: { page: 1, limit: 20, total: 1, totalPages: 1 },
-    }, 2)).toThrow("paging");
+    expect(
+      normalizeProductPage(
+        {
+          success: true,
+          products: [],
+          pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
+        },
+        1,
+      ).pagination.hasNextPage,
+    ).toBe(false);
+    expect(() =>
+      normalizeProductPage(
+        {
+          success: true,
+          products: [product],
+          pagination: { page: 1, limit: 20, total: 1, totalPages: 1 },
+        },
+        2,
+      ),
+    ).toThrow("paging");
   });
+});
+
+describe("shared Android and iOS routes", () => {
+  it("preserves CMS category navigation", () =>
+    expect(routeFor("Shop", "Shirts & Tees")).toBe(
+      "/(tabs)/shop?category=Shirts%20%26%20Tees",
+    ));
+  it("routes account edits and order details", () => {
+    expect(routeFor("EditProfile")).toBe("/edit-profile");
+    expect(routeFor("OrderDetail", "order1")).toBe("/order/order1");
+  });
+  it("encodes identifiers and rejects missing ones", () => {
+    expect(routeFor("Product", "a/b")).toBe("/product/a%2Fb");
+    expect(() => routeFor("OrderDetail")).toThrow();
+    expect(() => routeFor("Product")).toThrow();
+  });
+  it("rejects unknown routes", () =>
+    expect(() => routeFor("Unknown")).toThrow());
 });

@@ -21,7 +21,7 @@ Razorpay requires a custom native build. Expo Go cannot load its native module; 
 
 The GitHub Actions workflow checks types/tests, generates Android sources and builds a standalone release-mode **test APK signed with the generated debug key**. Download `tastha-android-development-apk` from a successful Actions run. It includes the JS bundle and does not require Metro. The workflow has not yet run. These test artifacts are not store releases and are not suitable for Play publication. In this public repository, Actions artifacts are visible to people with repository access.
 
-Alternatively, configure an Expo account/project and run `eas build --platform android --profile preview` using `eas.json`. This may use paid/external build infrastructure; it has not been invoked here.
+Alternatively, configure an Expo account/project and run `npx eas-cli@latest build --platform android --profile preview` using `eas.json`. This may use paid/external build infrastructure; it has not been invoked here.
 
 Production publication requires an owned signing key, merchant verification, device QA and privacy/store review. Android compilation in the current environment failed because the Gradle distribution was unreachable; no APK has been produced.
 
@@ -36,3 +36,9 @@ Production publication requires an owned signing key, merchant verification, dev
 - Order history and honest AI capability/unavailable screen.
 
 See [IMPLEMENTATION.md](docs/IMPLEMENTATION.md) for verification, limitations and remaining features. This is an initial native implementation, not a claim that the complete commerce specification is production-ready.
+
+## Shared Android and iOS navigation
+
+Both platforms now use the same Expo Router screens in `src/app/`, with native stacks and persistent tabs. Profile editing, category links and order details are preserved. Account-only routes redirect to sign-in when the session is absent. A first-visit location screen allows users to detect/confirm delivery location or browse without granting permission.
+
+See [Shared mobile navigation verification](docs/SHARED_MOBILE_NAVIGATION.md) for the latest checks. The iOS workflow builds a simulator `.app` without signing; it is not an installable iPhone IPA or TestFlight release.

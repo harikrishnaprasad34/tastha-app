@@ -18,10 +18,7 @@
     },
     "android": {
       "package": "com.tastha.app",
-      "permissions": [
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
-      ]
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -35,7 +32,8 @@
           "locationWhenInUsePermission": "Allow Tastha to find your approximate delivery area. You can also enter a PIN manually."
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-router"
     ]
   }
 }

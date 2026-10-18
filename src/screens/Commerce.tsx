@@ -54,7 +54,7 @@ export function Bag({ navigate }: { navigate: Navigate }) {
     [error, setError] = useState("");
   useEffect(() => {
     if (user) dispatch(fetchBag());
-  }, [dispatch, user?.id]);
+  }, [dispatch, user]);
   if (!user) return <SignIn navigate={navigate} />;
   async function update(arg: Parameters<typeof changeBag>[0]) {
     setError("");
@@ -191,7 +191,7 @@ export function Wishlist({ navigate }: { navigate: Navigate }) {
   const [error, setError] = useState("");
   useEffect(() => {
     if (user) dispatch(fetchWishlist());
-  }, [dispatch, user?.id]);
+  }, [dispatch, user]);
   if (!user) return <SignIn navigate={navigate} />;
   return (
     <ScrollView contentContainerStyle={s.content}>
@@ -250,7 +250,9 @@ export function Addresses({ navigate }: { navigate: Navigate }) {
       dispatch(actions.selectAddress(address._id));
       dispatch(actions.setLocation(delivery));
     } catch {
-      setLocationError("Delivery location could not be saved. Try selecting again.");
+      setLocationError(
+        "Delivery location could not be saved. Try selecting again.",
+      );
     } finally {
       setSelecting(false);
     }
@@ -273,9 +275,14 @@ export function Addresses({ navigate }: { navigate: Navigate }) {
           key={a._id}
           disabled={selecting}
           accessibilityRole="radio"
-          accessibilityState={{ checked: a._id === selectedAddressId, disabled: selecting }}
+          accessibilityState={{
+            checked: a._id === selectedAddressId,
+            disabled: selecting,
+          }}
           style={[s.panel, a._id === selectedAddressId && s.active]}
-          onPress={() => { void choose(a); }}
+          onPress={() => {
+            void choose(a);
+          }}
         >
           <Text style={s.heading}>{a.fullName}</Text>
           <Text style={s.text}>
@@ -301,12 +308,17 @@ export function Orders({ navigate }: { navigate: Navigate }) {
   );
   useEffect(() => {
     if (user) dispatch(fetchOrders());
-  }, [dispatch, user?.id]);
+  }, [dispatch, user]);
   if (!user) return <SignIn navigate={navigate} />;
   return (
-    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.content}>
+    <ScrollView
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={s.content}
+    >
       <Text style={s.title}>My Orders</Text>
-      <Text style={s.muted}>Review purchases, delivery progress and payment status.</Text>
+      <Text style={s.muted}>
+        Review purchases, delivery progress and payment status.
+      </Text>
       <Field
         label="Search by order number or product"
         value={query}
@@ -314,12 +326,14 @@ export function Orders({ navigate }: { navigate: Navigate }) {
         placeholder="Search your orders"
       />
       <View style={s.row}>
-        {([
-          ["ALL", "All"],
-          ["ACTIVE", "Active"],
-          ["DELIVERED", "Delivered"],
-          ["CANCELLED", "Cancelled"],
-        ] as const).map(([value, label]) => (
+        {(
+          [
+            ["ALL", "All"],
+            ["ACTIVE", "Active"],
+            ["DELIVERED", "Delivered"],
+            ["CANCELLED", "Cancelled"],
+          ] as const
+        ).map(([value, label]) => (
           <Pressable
             key={value}
             accessibilityRole="button"
@@ -334,9 +348,15 @@ export function Orders({ navigate }: { navigate: Navigate }) {
       <Button
         title={sort === "NEWEST" ? "Sort: Newest first" : "Sort: Oldest first"}
         outline
-        onPress={() => setSort((old) => old === "NEWEST" ? "OLDEST" : "NEWEST")}
+        onPress={() =>
+          setSort((old) => (old === "NEWEST" ? "OLDEST" : "NEWEST"))
+        }
       />
-      <Button title="Refresh orders" outline onPress={() => dispatch(fetchOrders())} />
+      <Button
+        title="Refresh orders"
+        outline
+        onPress={() => dispatch(fetchOrders())}
+      />
       {pending.orders ? <Loading /> : null}
       <ErrorBox message={errors.orders} retry={() => dispatch(fetchOrders())} />
       {filtered.map((order) => (
@@ -345,22 +365,32 @@ export function Orders({ navigate }: { navigate: Navigate }) {
           style={s.panel}
           accessibilityRole="button"
           accessibilityLabel={"View order " + order.orderNumber}
-          onPress={() => navigate("OrderDetail", order._id || order.orderNumber)}
+          onPress={() =>
+            navigate("OrderDetail", order._id || order.orderNumber)
+          }
         >
           <Text style={s.heading}>{order.orderNumber}</Text>
           <Text style={s.text}>Order: {order.orderStatus}</Text>
           <Text style={s.muted}>Payment: {order.paymentStatus}</Text>
           <Text style={s.price}>{money(order.totalAmount)}</Text>
           <Text style={s.muted}>
-            {order.createdAt ? new Date(order.createdAt).toLocaleDateString("en-IN") : ""}
+            {order.createdAt
+              ? new Date(order.createdAt).toLocaleDateString("en-IN")
+              : ""}
           </Text>
-          <Text style={[s.text, { color: "#D4AF37" }]}>View order details →</Text>
+          <Text style={[s.text, { color: "#D4AF37" }]}>
+            View order details →
+          </Text>
         </Pressable>
       ))}
       {!pending.orders && !errors.orders && !filtered.length ? (
         <Empty
           title={orders.length ? "No matching orders" : "No orders yet"}
-          detail={orders.length ? "Try another search or filter." : "Explore Tastha collections to get started."}
+          detail={
+            orders.length
+              ? "Try another search or filter."
+              : "Explore Tastha collections to get started."
+          }
         />
       ) : null}
     </ScrollView>
@@ -387,21 +417,27 @@ export function OrderDetail({
     const controller = new AbortController();
     setLoading(true);
     setError("");
-    api.request<{ order: Order }>("/orders/" + encodeURIComponent(id), {
-      auth: "required",
-      signal: controller.signal,
-    }).then((response) => {
-      if (!response.order?._id) throw Error("Order details are unavailable.");
-      if (!controller.signal.aborted) setOrder(response.order);
-    }).catch((reason) => {
-      if (!controller.signal.aborted) {
-        setError(reason instanceof Error ? reason.message : "Could not load order.");
-      }
-    }).finally(() => {
-      if (!controller.signal.aborted) setLoading(false);
-    });
+    api
+      .request<{ order: Order }>("/orders/" + encodeURIComponent(id), {
+        auth: "required",
+        signal: controller.signal,
+      })
+      .then((response) => {
+        if (!response.order?._id) throw Error("Order details are unavailable.");
+        if (!controller.signal.aborted) setOrder(response.order);
+      })
+      .catch((reason) => {
+        if (!controller.signal.aborted) {
+          setError(
+            reason instanceof Error ? reason.message : "Could not load order.",
+          );
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
     return () => controller.abort();
-  }, [id, user?.id, revision]);
+  }, [id, user, revision]);
 
   if (!user) return <SignIn navigate={navigate} />;
   const cancel = () => {
@@ -427,11 +463,17 @@ export function OrderDetail({
                 },
               );
               if (!result.order || result.order.orderStatus !== "CANCELLED")
-                throw Error("Cancellation was not confirmed. Refresh the order.");
+                throw Error(
+                  "Cancellation was not confirmed. Refresh the order.",
+                );
               setOrder(result.order);
               dispatch(fetchOrders());
             } catch (reason) {
-              setError(reason instanceof Error ? reason.message : "Could not cancel order.");
+              setError(
+                reason instanceof Error
+                  ? reason.message
+                  : "Could not cancel order.",
+              );
             } finally {
               setBusy(false);
             }
@@ -457,7 +499,9 @@ export function OrderDetail({
             ) : null}
             <Text style={s.price}>{money(order.totalAmount)}</Text>
             <Text style={s.muted}>
-              {order.createdAt ? new Date(order.createdAt).toLocaleString("en-IN") : ""}
+              {order.createdAt
+                ? new Date(order.createdAt).toLocaleString("en-IN")
+                : ""}
             </Text>
           </View>
           {order.shippingAddress ? (
@@ -465,18 +509,23 @@ export function OrderDetail({
               <Text style={s.heading}>Delivery address</Text>
               <Text style={s.text}>{order.shippingAddress.fullName}</Text>
               <Text style={s.muted}>
-                {order.shippingAddress.streetAddress}, {order.shippingAddress.city},
-                {" "}{order.shippingAddress.state} {order.shippingAddress.pinCode}
+                {order.shippingAddress.streetAddress},{" "}
+                {order.shippingAddress.city}, {order.shippingAddress.state}{" "}
+                {order.shippingAddress.pinCode}
               </Text>
             </View>
           ) : null}
           <Text style={s.heading}>Ordered items</Text>
           {order.items?.map((item, index) => (
             <View key={index} style={s.panel}>
-              <Text style={s.text}>{item.name || item.product?.name || "Product"}</Text>
+              <Text style={s.text}>
+                {item.name || item.product?.name || "Product"}
+              </Text>
               <Text style={s.muted}>Quantity: {item.quantity}</Text>
               <Text style={s.muted}>
-                {[item.selectedColor, item.selectedSize].filter(Boolean).join(" · ")}
+                {[item.selectedColor, item.selectedSize]
+                  .filter(Boolean)
+                  .join(" · ")}
               </Text>
               {typeof item.price === "number" ? (
                 <Text style={s.price}>{money(item.price)}</Text>
@@ -492,7 +541,8 @@ export function OrderDetail({
             />
           ) : null}
           <Text style={s.muted}>
-            Updates are supplied by Tastha's order service. Delivery times cannot be guaranteed from this screen.
+            Updates are supplied by Tastha’s order service. Delivery times
+            cannot be guaranteed from this screen.
           </Text>
         </>
       ) : null}
@@ -510,23 +560,26 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
   const [quote, setQuote] = useState<Quote | null>(null),
     [quoteFor, setQuoteFor] = useState(""),
     [methods, setMethods] = useState<PaymentMethod[]>([]),
+    [optionsReady, setOptionsReady] = useState(false),
     [method, setMethod] = useState(""),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(false),
     [paying, setPaying] = useState(false),
     [refresh, setRefresh] = useState(0);
-  const coordinator = useMemo(checkoutForCurrentSession, [user?.id]);
+  const coordinator = useMemo(
+    () => (user?.id ? checkoutForCurrentSession() : null),
+    [user?.id],
+  );
   const fingerprint = JSON.stringify([user?.id, bag, address]);
   useEffect(() => {
     dispatch(fetchBag());
     dispatch(fetchAddresses());
   }, [dispatch]);
   useEffect(() => {
-    setQuote(null);
-    setQuoteFor("");
+    // Keep the last bill and selection visible during gateway refresh.
+    // quoteFor binds the amount to the current account, bag and address.
     setError("");
-    setMethods([]);
-    setMethod("");
+    setOptionsReady(false);
     if (!user || !bag?.items.length || !address) {
       setLoading(false);
       return;
@@ -556,6 +609,14 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
         setQuoteFor(fingerprint);
         setQuote(q.quote);
         setMethods(m.paymentMethods);
+        setMethod((current) =>
+          m.paymentMethods.some(
+            (option) => option.code === current && option.enabled,
+          )
+            ? current
+            : "",
+        );
+        setOptionsReady(true);
       })
       .catch((e) => {
         if (!controller.signal.aborted) setError(e.message);
@@ -564,11 +625,21 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [fingerprint, refresh]);
+  }, [fingerprint, refresh, bag, address, user]);
   const verifiedQuote = quoteFor === fingerprint ? quote : null;
   if (!user) return <SignIn navigate={navigate} />;
   async function pay() {
-    if (!bag || !address || !verifiedQuote || !user || paying || loading) return;
+    if (
+      !coordinator ||
+      !bag ||
+      !address ||
+      !verifiedQuote ||
+      !optionsReady ||
+      !user ||
+      paying ||
+      loading
+    )
+      return;
     const chosen = methods.find((x) => x.code === method);
     if (!chosen?.enabled || (method !== "COD" && !hasNativePayments())) return;
     setPaying(true);
@@ -658,7 +729,9 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
           const option = methods.find((m) => m.code === code);
           if (!option) return null;
           const available =
-            option.enabled && (code === "COD" || hasNativePayments());
+            optionsReady &&
+            option.enabled &&
+            (code === "COD" || hasNativePayments());
           return (
             <Pressable
               key={code}
@@ -678,9 +751,11 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
               <Text style={s.text}>{option.name || code}</Text>
               {!available ? (
                 <Text style={s.muted}>
-                  {option.enabled
-                    ? "Online payment requires the installed native build."
-                    : option.message || "Currently unavailable"}
+                  {!optionsReady
+                    ? "Refresh payment options to confirm availability."
+                    : option.enabled
+                      ? "Online payment requires the installed native build."
+                      : option.message || "Currently unavailable"}
                 </Text>
               ) : null}
             </Pressable>
@@ -693,13 +768,16 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
       </ScrollView>
       <View style={[s.panel, { borderRadius: 0 }]}>
         <Text style={s.price}>
-          {verifiedQuote ? money(verifiedQuote.totalAmount) : "Awaiting verified total"}
+          {verifiedQuote
+            ? money(verifiedQuote.totalAmount)
+            : "Awaiting verified total"}
         </Text>
         <Button
           title={method === "COD" ? "Place COD order" : "Pay securely"}
           busy={paying}
           disabled={
             !verifiedQuote ||
+            !optionsReady ||
             loading ||
             !method ||
             !address ||

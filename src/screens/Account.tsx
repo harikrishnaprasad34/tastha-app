@@ -132,7 +132,11 @@ export function Account({ navigate }: { navigate: Navigate }) {
       ) : (
         <>
           <Text style={s.muted}>{user.email || user.phone}</Text>
-          <Button title="Edit profile" outline onPress={() => navigate("EditProfile")} />
+          <Button
+            title="Edit profile"
+            outline
+            onPress={() => navigate("EditProfile")}
+          />
           <Button title="My orders" onPress={() => navigate("Orders")} />
           <Button
             title="Saved addresses"
@@ -168,7 +172,10 @@ export function EditProfile({ navigate }: { navigate: Navigate }) {
     );
   }
   return (
-    <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      contentContainerStyle={s.content}
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={s.title}>Edit Profile</Text>
       <Text style={s.muted}>
         Your changes are saved to your existing Tastha customer account.
@@ -183,24 +190,44 @@ export function EditProfile({ navigate }: { navigate: Navigate }) {
           sizePreference: user.sizePreference || "M",
         }}
         validationSchema={Yup.object({
-          fullName: Yup.string().trim().min(2).max(80).required("Full name is required"),
-          phone: Yup.string().trim().matches(/^(?:\\+91[ -]?)?[6-9]\\d{9}$/, "Enter a valid mobile number").required("Phone number is required"),
+          fullName: Yup.string()
+            .trim()
+            .min(2)
+            .max(80)
+            .required("Full name is required"),
+          phone: Yup.string()
+            .trim()
+            .matches(
+              /^(?:\\+91[ -]?)?[6-9]\\d{9}$/,
+              "Enter a valid mobile number",
+            )
+            .required("Phone number is required"),
           stylePreference: Yup.string().required(),
-          sizePreference: Yup.string().oneOf(["S", "M", "L", "XL", "XXL"]).required(),
+          sizePreference: Yup.string()
+            .oneOf(["S", "M", "L", "XL", "XXL"])
+            .required(),
         })}
         onSubmit={async (values) => {
           setError("");
           setNotice("");
           const original = session.get();
           if (!original || original.user.id !== user.id) {
-            setError("Your session changed. Sign in again to edit this profile.");
+            setError(
+              "Your session changed. Sign in again to edit this profile.",
+            );
             return;
           }
           try {
-            const result = await api.request<{ user?: {
-              _id?: string; id?: string; fullName?: string; phone?: string;
-              stylePreference?: string; sizePreference?: string;
-            } }>("/users/profile", {
+            const result = await api.request<{
+              user?: {
+                _id?: string;
+                id?: string;
+                fullName?: string;
+                phone?: string;
+                stylePreference?: string;
+                sizePreference?: string;
+              };
+            }>("/users/profile", {
               method: "PUT",
               auth: "required",
               body: {
@@ -220,12 +247,23 @@ export function EditProfile({ navigate }: { navigate: Navigate }) {
             setNotice("Your profile has been saved.");
           } catch (reason) {
             setError(
-              reason instanceof Error ? reason.message : "Could not save your profile.",
+              reason instanceof Error
+                ? reason.message
+                : "Could not save your profile.",
             );
           }
         }}
       >
-        {({ values, touched, errors, handleChange, handleBlur, handleSubmit, setFieldValue, isSubmitting }) => (
+        {({
+          values,
+          touched,
+          errors,
+          handleChange,
+          handleBlur,
+          handleSubmit,
+          setFieldValue,
+          isSubmitting,
+        }) => (
           <View style={{ gap: 16 }}>
             <Field
               label="Full name"
@@ -234,7 +272,11 @@ export function EditProfile({ navigate }: { navigate: Navigate }) {
               onBlur={handleBlur("fullName")}
               error={touched.fullName ? errors.fullName : undefined}
             />
-            <Field label="Registered email (read-only)" value={user.email || ""} editable={false} />
+            <Field
+              label="Registered email (read-only)"
+              value={user.email || ""}
+              editable={false}
+            />
             <Field
               label="Mobile number"
               value={values.phone}
@@ -245,17 +287,26 @@ export function EditProfile({ navigate }: { navigate: Navigate }) {
             />
             <Text style={s.heading}>Style preference</Text>
             <View style={s.row}>
-              {["Smart Casual", "Formal", "Streetwear", "Ethnic"].map((style) => (
-                <Pressable
-                  key={style}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: values.stylePreference === style }}
-                  onPress={() => { void setFieldValue("stylePreference", style); }}
-                  style={[s.pill, values.stylePreference === style && s.active]}
-                >
-                  <Text style={s.text}>{style}</Text>
-                </Pressable>
-              ))}
+              {["Smart Casual", "Formal", "Streetwear", "Ethnic"].map(
+                (style) => (
+                  <Pressable
+                    key={style}
+                    accessibilityRole="button"
+                    accessibilityState={{
+                      selected: values.stylePreference === style,
+                    }}
+                    onPress={() => {
+                      void setFieldValue("stylePreference", style);
+                    }}
+                    style={[
+                      s.pill,
+                      values.stylePreference === style && s.active,
+                    ]}
+                  >
+                    <Text style={s.text}>{style}</Text>
+                  </Pressable>
+                ),
+              )}
             </View>
             <Text style={s.heading}>Preferred size</Text>
             <View style={s.row}>
@@ -263,8 +314,12 @@ export function EditProfile({ navigate }: { navigate: Navigate }) {
                 <Pressable
                   key={size}
                   accessibilityRole="button"
-                  accessibilityState={{ selected: values.sizePreference === size }}
-                  onPress={() => { void setFieldValue("sizePreference", size); }}
+                  accessibilityState={{
+                    selected: values.sizePreference === size,
+                  }}
+                  onPress={() => {
+                    void setFieldValue("sizePreference", size);
+                  }}
                   style={[s.pill, values.sizePreference === size && s.active]}
                 >
                   <Text style={s.text}>{size}</Text>
@@ -273,7 +328,11 @@ export function EditProfile({ navigate }: { navigate: Navigate }) {
             </View>
             <ErrorBox message={error} />
             {notice ? <Text style={s.muted}>{notice}</Text> : null}
-            <Button title="Save changes" busy={isSubmitting} onPress={() => handleSubmit()} />
+            <Button
+              title="Save changes"
+              busy={isSubmitting}
+              onPress={() => handleSubmit()}
+            />
           </View>
         )}
       </Formik>
@@ -406,6 +465,7 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
   useEffect(() => {
     const query = label.trim();
     if (!showFields || !searchEnabled || query.length < 3) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Dismiss stale suggestions when the user closes or clears search.
       setSuggestions([]);
       setSearching(false);
       return;
@@ -415,10 +475,11 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
     const timer = setTimeout(() => {
       if (!active) return;
       setSearching(true);
-      api.request<{ locations?: SearchedPlace[] }>(
-        "/location/search?q=" + encodeURIComponent(query),
-        { timeout: 8000, signal: controller.signal },
-      )
+      api
+        .request<{ locations?: SearchedPlace[] }>(
+          "/location/search?q=" + encodeURIComponent(query),
+          { timeout: 8000, signal: controller.signal },
+        )
         .then((result) => {
           if (!active) return;
           setSuggestions(
@@ -454,7 +515,9 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
     try {
       const servicesEnabled = await Location.hasServicesEnabledAsync();
       if (!servicesEnabled)
-        throw Error("Turn on device Location Services, or enter your PIN manually.");
+        throw Error(
+          "Turn on device Location Services, or enter your PIN manually.",
+        );
       const currentPermission = await Location.getForegroundPermissionsAsync();
       const permission = currentPermission.granted
         ? currentPermission
@@ -482,7 +545,10 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
             }),
             new Promise<never>((_, reject) => {
               timeout = setTimeout(
-                () => reject(Error("Location took too long. Try again or enter a PIN.")),
+                () =>
+                  reject(
+                    Error("Location took too long. Try again or enter a PIN."),
+                  ),
                 14000,
               );
             }),
@@ -518,8 +584,10 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
               city?: string;
             };
           }>(
-            "/location/reverse?lat=" + encodeURIComponent(coords.lat) +
-              "&lng=" + encodeURIComponent(coords.lng),
+            "/location/reverse?lat=" +
+              encodeURIComponent(coords.lat) +
+              "&lng=" +
+              encodeURIComponent(coords.lng),
             { timeout: 7000 },
           );
           server = result.location || null;
@@ -530,11 +598,13 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
       const resolved = describeDetectedPlace(native, server);
       setPin(resolved.pinCode);
       setLabel(resolved.label);
-      const radius = coords.accuracy == null
-        ? "Accuracy is unavailable"
-        : "Estimated accuracy: " + Math.round(coords.accuracy) + " m";
+      const radius =
+        coords.accuracy == null
+          ? "Accuracy is unavailable"
+          : "Estimated accuracy: " + Math.round(coords.accuracy) + " m";
       setAccuracyNote(
-        radius + (cached ? " (recent device position)." : ".") +
+        radius +
+          (cached ? " (recent device position)." : ".") +
           " Check your road, landmark and PIN before confirming." +
           (position.mocked ? " The device reports a simulated position." : ""),
       );
@@ -545,7 +615,9 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
     } catch (e) {
       setShowFields(true);
       setError(
-        e instanceof Error ? e.message : "Location is unavailable. Enter your delivery PIN.",
+        e instanceof Error
+          ? e.message
+          : "Location is unavailable. Enter your delivery PIN.",
       );
     } finally {
       setBusy(false);
@@ -588,8 +660,8 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
       <View style={s.panel}>
         <Text style={s.heading}>Use your current location</Text>
         <Text style={s.muted}>
-          We will suggest an address for you to check, not automatically
-          replace a saved delivery location.
+          We will suggest an address for you to check, not automatically replace
+          a saved delivery location.
         </Text>
         <Button
           title="Detect my current location"
@@ -628,7 +700,9 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
               setAccuracyNote("");
             }}
           />
-          {searching ? <Text style={s.muted}>Finding nearby areas…</Text> : null}
+          {searching ? (
+            <Text style={s.muted}>Finding nearby areas…</Text>
+          ) : null}
           {suggestions.length ? (
             <View style={{ gap: 8 }}>
               <Text style={s.muted}>Choose a suggested street or area</Text>
@@ -643,7 +717,7 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
                     setPin(place.pinCode || "");
                     setCoordinates(
                       typeof place.lat === "number" &&
-                      typeof place.lng === "number"
+                        typeof place.lng === "number"
                         ? { lat: place.lat, lng: place.lng }
                         : undefined,
                     );
@@ -672,14 +746,26 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
               setCoordinates(undefined);
             }}
           />
-          <Button title="Confirm delivery location" busy={busy} onPress={confirm} />
+          <Button
+            title="Confirm delivery location"
+            busy={busy}
+            onPress={confirm}
+          />
         </View>
       )}
       {user ? (
-        <Button title="Choose a saved address" outline onPress={() => navigate("Addresses")} />
+        <Button
+          title="Choose a saved address"
+          outline
+          onPress={() => navigate("Addresses")}
+        />
       ) : null}
       <ErrorBox message={error} />
-      <Button title="Browse without location" outline onPress={() => navigate("Home")} />
+      <Button
+        title="Browse without location"
+        outline
+        onPress={() => navigate("Home")}
+      />
       <Text style={s.muted}>
         The product list updates for your confirmed PIN. Final delivery
         eligibility is checked using the full address at checkout.

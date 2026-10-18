@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  Platform,
   ActivityIndicator,
   Pressable,
   Text,
@@ -12,7 +13,11 @@ import { colors as c } from "../config";
 export const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: c.background },
   content: { padding: 20, gap: 16, paddingBottom: 40 },
-  title: { fontSize: 30, fontFamily: "serif", color: c.text },
+  title: {
+    fontSize: 30,
+    fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
+    color: c.text,
+  },
   heading: { fontSize: 21, color: c.text, fontWeight: "600" },
   text: { color: c.text, fontSize: 16 },
   muted: { color: c.muted, fontSize: 14, lineHeight: 21 },
@@ -46,7 +51,13 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     minHeight: 50,
   },
-  buttonText: { color: c.background, fontWeight: "700", fontSize: 16 },
+  buttonText: {
+    color: c.background,
+    fontWeight: "700",
+    fontSize: 16,
+    textAlign: "center",
+    flexShrink: 1,
+  },
   outline: { backgroundColor: c.panel, borderWidth: 1, borderColor: c.gold },
   outlineText: { color: c.gold },
   error: { color: c.error, lineHeight: 22 },

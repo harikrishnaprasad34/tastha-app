@@ -16,13 +16,20 @@
     "react-native-razorpay": "^3.0.0",
     "react-native-safe-area-context": "~5.10.1",
     "react-redux": "^9.3.0",
-    "yup": "^1.7.1"
+    "yup": "^1.7.1",
+    "expo-router": "~58.0.23",
+    "expo-linking": "~58.0.13",
+    "expo-constants": "~58.0.12",
+    "react-native-screens": "~4.30.0",
+    "react-dom": "19.3.0"
   },
   "devDependencies": {
     "@types/react": "~19.3.0",
     "prettier": "^3.9.10",
     "typescript": "~6.0.3",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "eslint": "^9.39.5",
+    "eslint-config-expo": "~58.0.4"
   },
   "scripts": {
     "start": "expo start",
@@ -34,7 +41,8 @@
     "bundle:android": "expo export --platform android",
     "build:android": "expo prebuild --platform android --no-install",
     "bundle:ios": "expo export --platform ios",
-    "build:ios": "expo prebuild --platform ios --no-install"
+    "build:ios": "expo prebuild --platform ios --no-install",
+    "lint": "eslint ."
   },
   "private": true,
   "overrides": {

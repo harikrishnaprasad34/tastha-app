@@ -78,7 +78,11 @@ export function Home({ navigate }: { navigate: Navigate }) {
       </Text>
       <View style={s.row}>
         <Button title="Explore Collection" onPress={() => navigate("Shop")} />
-        <Button title="AI Outfit Finder" outline onPress={() => navigate("AI")} />
+        <Button
+          title="AI Outfit Finder"
+          outline
+          onPress={() => navigate("AI")}
+        />
       </View>
       {homeLoading ? <Loading /> : null}
       <ErrorBox message={homeError} retry={() => dispatch(fetchHome(pin))} />
@@ -119,7 +123,9 @@ export function Home({ navigate }: { navigate: Navigate }) {
                   key={category.slug || category.name + i}
                   accessibilityRole="button"
                   accessibilityLabel={"Shop " + category.name}
-                  onPress={() => navigate("Shop", category.slug || category.name)}
+                  onPress={() =>
+                    navigate("Shop", category.slug || category.name)
+                  }
                   style={[s.panel, { width: "46%", padding: 8, gap: 6 }]}
                 >
                   {thumbnail ? (
@@ -132,7 +138,9 @@ export function Home({ navigate }: { navigate: Navigate }) {
                   ) : null}
                   <Text style={s.text}>{category.name}</Text>
                   {typeof category.productCount === "number" ? (
-                    <Text style={s.muted}>{category.productCount} products</Text>
+                    <Text style={s.muted}>
+                      {category.productCount} products
+                    </Text>
                   ) : null}
                 </Pressable>
               );
@@ -230,7 +238,7 @@ export function Catalog({
   useEffect(() => {
     const task = dispatch(fetchCatalog({ filter: query, page: 1, key }));
     return () => task.abort();
-  }, [dispatch, key]);
+  }, [dispatch, key, query]);
   const load = (page: number) =>
     dispatch(fetchCatalog({ filter: query, page, key }));
   return (
@@ -404,9 +412,16 @@ export function ProductDetail({
                 style={[s.pill, color === v && s.active]}
                 onPress={() => {
                   setColor(v);
-                  if (size && !product.variants?.some(
-                    (item) => item.color === v && item.size === size && item.isActive !== false,
-                  )) setSize("");
+                  if (
+                    size &&
+                    !product.variants?.some(
+                      (item) =>
+                        item.color === v &&
+                        item.size === size &&
+                        item.isActive !== false,
+                    )
+                  )
+                    setSize("");
                 }}
               >
                 <Text style={s.text}>{v}</Text>
@@ -423,9 +438,16 @@ export function ProductDetail({
                 style={[s.pill, size === v && s.active]}
                 onPress={() => {
                   setSize(v);
-                  if (color && !product.variants?.some(
-                    (item) => item.size === v && item.color === color && item.isActive !== false,
-                  )) setColor("");
+                  if (
+                    color &&
+                    !product.variants?.some(
+                      (item) =>
+                        item.size === v &&
+                        item.color === color &&
+                        item.isActive !== false,
+                    )
+                  )
+                    setColor("");
                 }}
               >
                 <Text style={s.text}>{v}</Text>

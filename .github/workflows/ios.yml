@@ -1,0 +1,34 @@
+name: iOS simulator verification
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run bundle:ios
+      - run: npx expo prebuild --platform ios --no-install
+      - name: Install iOS pods
+        working-directory: ios
+        run: pod install
+      - name: Build simulator app (no signing, not an iPhone IPA)
+        run: xcodebuild -workspace ios/Tastha.xcworkspace -scheme Tastha -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tastha-ios-simulator-app
+          path: build/Build/Products/Release-iphonesimulator/Tastha.app
+          if-no-files-found: error
