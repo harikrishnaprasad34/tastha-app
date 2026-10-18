@@ -460,7 +460,6 @@ export function buildStore(extra: Extra) {
     const user = extra.session.get()?.user || null;
     if (identity !== (user?.id || null)) {
       store.dispatch(commerce.actions.reset());
-      store.dispatch(location.actions.setLocation(null));
       identity = user?.id || null;
     }
     store.dispatch(auth.actions.setUser(user));

@@ -83,6 +83,40 @@ const response = (data: unknown, status = 200) =>
     headers: { "Content-Type": "application/json" },
   });
 describe("secure sessions and requests", () => {
+  it("keeps a saved sign-in when refresh fails due to connectivity", async () => {
+    const deviceStorage = storage();
+    const manager = createSessionManager(deviceStorage);
+    await manager.save(customer);
+    const api = createApiClient("https://example.test", manager, async (url) =>
+      String(url).endsWith("/auth/refresh-token")
+        ? Promise.reject(Error("offline"))
+        : response({ message: "Access expired" }, 401),
+    );
+    await expect(api.request("/cart", { auth: "required" })).rejects.toThrow("Cannot reach");
+    expect(manager.get()?.user.id).toBe(customer.user.id);
+    expect(deviceStorage.remove).not.toHaveBeenCalled();
+  });
+  it("clears session only if refresh credentials are rejected", async () => {
+    const manager = createSessionManager(storage());
+    await manager.save(customer);
+    const api = createApiClient("https://example.test", manager, async (url) =>
+      response({ message: "Token invalid" }, String(url).endsWith("/auth/refresh-token") ? 401 : 401),
+    );
+    await expect(api.request("/cart", { auth: "required" })).rejects.toThrow("session expired");
+    expect(manager.get()).toBeNull();
+  });
+  it("keeps device delivery location on login and sign-out", async () => {
+    const manager = createSessionManager(storage());
+    const appStore = buildStore({
+      api: {} as ReturnType<typeof createApiClient>,
+      session: manager,
+    });
+    appStore.dispatch(actions.setLocation({ label: "Road 12", pinCode: "500034" }));
+    await manager.save(customer, manager.revision(), true);
+    expect(appStore.getState().location?.label).toBe("Road 12");
+    await manager.clear();
+    expect(appStore.getState().location?.label).toBe("Road 12");
+  });
   it("rejects a staff session in the customer client", async () => {
     const manager = createSessionManager(storage());
     await expect(

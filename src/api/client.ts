@@ -70,37 +70,45 @@ export function createApiClient(
     const old = session.get();
     if (!old) throw new ApiError("Sign in to continue.", 401);
     const pending = (async () => {
+      let result: Awaited<ReturnType<typeof raw>>;
       try {
-        const { response, data } = await raw(
-          "/auth/refresh-token",
-          {
-            method: "POST",
-            auth: "none",
-            body: { refreshToken: old.refreshToken },
-          },
-          undefined,
-        );
+        result = await raw("/auth/refresh-token", {
+          method: "POST",
+          auth: "none",
+          body: { refreshToken: old.refreshToken },
+        });
+      } catch (error) {
+        // A network error, timeout or server failure must not log the customer out.
         if (
-          !response.ok ||
-          typeof data.accessToken !== "string" ||
-          typeof data.refreshToken !== "string"
+          error instanceof ApiError &&
+          (error.status === 401 || error.status === 403) &&
+          expected === session.revision()
         )
-          throw new ApiError(
-            "Your session expired. Please sign in again.",
-            401,
-          );
-        await session.save(
-          {
-            ...old,
-            accessToken: data.accessToken,
-            refreshToken: data.refreshToken,
-          },
-          expected,
-        );
-      } catch (e) {
-        if (expected === session.revision()) await session.clear();
-        throw e;
+          await session.clear();
+        throw error;
       }
+      const { response, data } = result;
+      if (response.status === 401 || response.status === 403) {
+        // Only a definitive refresh-token rejection invalidates the session.
+        if (expected === session.revision()) await session.clear();
+        throw new ApiError("Your session expired. Please sign in again.", 401);
+      }
+      if (
+        !response.ok ||
+        data.success === false ||
+        typeof data.accessToken !== "string" ||
+        !data.accessToken ||
+        typeof data.refreshToken !== "string" ||
+        !data.refreshToken
+      )
+        throw new ApiError(
+          "Could not reconnect your account. Check your connection and retry.",
+          response.status,
+        );
+      await session.save(
+        { ...old, accessToken: data.accessToken, refreshToken: data.refreshToken },
+        expected,
+      );
     })();
     refresh = pending;
     try {
