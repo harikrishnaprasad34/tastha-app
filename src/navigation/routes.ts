@@ -70,6 +70,7 @@ export function storeLink(value?: string): string {
     const allowed = new URLSearchParams();
     for (const key of catalogQueryKeys)
       if (q.has(key)) allowed.set(key, q.get(key)!);
+    if (path === "/offers") allowed.set("offersOnly", "true");
     return "/(tabs)/shop" + (allowed.size ? "?" + allowed : "");
   }
   const decode = (value: string) => {

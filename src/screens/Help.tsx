@@ -84,7 +84,7 @@ const CONTENT: Record<Section, {
 };
 
 export function Help({ section, navigate }: { section: string; navigate: Navigate }) {
-  const key = section in CONTENT ? section as Section : "faq";
+  const key = Object.prototype.hasOwnProperty.call(CONTENT, section) ? section as Section : "faq";
   const page = CONTENT[key];
   return (
     <ScrollView contentContainerStyle={s.content}>
