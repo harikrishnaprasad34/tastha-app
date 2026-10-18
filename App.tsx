@@ -53,7 +53,7 @@ function Application() {
   const current = stack[stack.length - 1];
   const navigate = (name: string, id?: string) =>
     setStack((old) =>
-      tabs.includes(name) ? [{ name }] : [...old, { name, id }],
+      tabs.includes(name) ? [{ name, id }] : [...old, { name, id }],
     );
   useEffect(() => {
     let active = true;
@@ -94,7 +94,7 @@ function Application() {
   let screen;
   switch (current.name) {
     case "Shop":
-      screen = <Catalog navigate={navigate} />;
+      screen = <Catalog navigate={navigate} category={current.id} />;
       break;
     case "Product":
       screen = <ProductDetail id={current.id!} navigate={navigate} />;

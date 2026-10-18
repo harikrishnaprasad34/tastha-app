@@ -107,7 +107,7 @@ export function Home({ navigate }: { navigate: Navigate }) {
               <Pressable
                 key={category.slug || category.name + i}
                 accessibilityRole="button"
-                onPress={() => navigate("Shop")}
+                onPress={() => navigate("Shop", category.slug || category.name)}
                 style={s.pill}
               >
                 <Text style={s.text}>{category.name}</Text>
@@ -133,17 +133,30 @@ export function Home({ navigate }: { navigate: Navigate }) {
     </ScrollView>
   );
 }
-export function Catalog({ navigate }: { navigate: Navigate }) {
+export function Catalog({
+  navigate,
+  category,
+}: {
+  navigate: Navigate;
+  category?: string;
+}) {
   const dispatch = useAppDispatch();
   const c = useAppSelector((x) => x.catalog);
   const pin = useAppSelector((x) => x.location?.pinCode);
   const [filter, setFilter] = useState<CatalogFilter>({
     search: "",
-    category: "",
+    category: category || "",
     sort: "newest",
     maxPrice: "",
   });
   const [query, setQuery] = useState(filter);
+  useEffect(() => {
+    setFilter((current) =>
+      current.category === (category || "")
+        ? current
+        : { ...current, category: category || "" },
+    );
+  }, [category]);
   useEffect(() => {
     const timer = setTimeout(() => setQuery(filter), 350);
     return () => clearTimeout(timer);
