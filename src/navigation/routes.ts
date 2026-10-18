@@ -17,6 +17,11 @@ const routes: Record<string, string> = {
   Search: "/search",
 };
 export function routeFor(name: string, id?: string) {
+  if (name === "Help") {
+    if (!id || !["faq", "terms", "privacy", "shipping", "returns"].includes(id))
+      throw Error("Choose a valid Tastha help section.");
+    return "/help/" + id;
+  }
   if (name === "TrackOrder") {
     if (!id) throw Error("An order identifier is required.");
     return "/order/" + encodeURIComponent(id) + "/tracking";

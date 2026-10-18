@@ -152,6 +152,9 @@ export function Account({ navigate }: { navigate: Navigate }) {
         outline
         onPress={() => navigate("Location")}
       />
+      <Button title="Help and FAQs" outline onPress={() => navigate("Help", "faq")} />
+      <Button title="Privacy policy" outline onPress={() => navigate("Help", "privacy")} />
+      <Button title="Shipping and returns" outline onPress={() => navigate("Help", "shipping")} />
       <Button
         title="Virtual try-on availability"
         outline

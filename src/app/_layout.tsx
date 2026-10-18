@@ -37,6 +37,7 @@ export default function Root() {
               <Stack.Screen name="login" options={{ title: "Sign in" }} />
               <Stack.Screen name="signup" options={{ title: "Create account" }} />
               <Stack.Screen name="search" options={{ title: "Search Tastha" }} />
+              <Stack.Screen name="help/[section]" options={{ title: "Help and policies" }} />
               <Stack.Screen
                 name="location"
                 options={{ title: "Delivery location" }}
