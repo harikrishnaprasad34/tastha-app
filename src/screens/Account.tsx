@@ -481,7 +481,7 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
           onPress={() => {
             setShowFields(true);
             setSearchEnabled(true);
-          }
+          }}
         />
       ) : (
         <View style={s.panel}>
