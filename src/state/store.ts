@@ -33,6 +33,7 @@ interface Catalog {
   homeLoading: boolean;
   homeError: string | null;
   homeId: string | null;
+  homePin: string | null;
 }
 interface Commerce {
   bag: Cart | null;
@@ -69,6 +70,7 @@ const initialCatalog = (): Catalog => ({
   homeLoading: false,
   homeError: null,
   homeId: null,
+  homePin: null,
 });
 const initialCommerce = (): Commerce => ({
   bag: null,
@@ -136,13 +138,19 @@ export const fetchCatalog = thunk(
 );
 export const fetchHome = thunk(
   "catalog/home",
-  async (_, { extra, getState, signal }) =>
-    extra.api.request<Discovery>(
-      "/home/discovery?deliveryPinCode=" +
-        encode(getState().location?.pinCode || ""),
+  async (pinCode: string, { extra, signal }) => {
+    const result = await extra.api.request<Discovery>(
+      "/home/discovery?deliveryPinCode=" + encode(pinCode),
       { signal },
-    ),
-  { condition: (_, { getState }) => !getState().catalog.homeLoading },
+    );
+    return { result, pinCode };
+  },
+  {
+    condition: (pinCode, { getState }) => {
+      const c = getState().catalog;
+      return !(c.homeLoading && c.homePin === pinCode);
+    },
+  },
 );
 export const fetchBag = thunk(
   "commerce/bag",
@@ -312,13 +320,15 @@ const catalog = createSlice({
       if (!a.meta.aborted) s.error = a.error.message || "Cannot load products.";
     });
     b.addCase(fetchHome.pending, (s, a) => {
+      if (s.homePin !== a.meta.arg) s.home = null;
+      s.homePin = a.meta.arg;
       s.homeLoading = true;
       s.homeError = null;
       s.homeId = a.meta.requestId;
     });
     b.addCase(fetchHome.fulfilled, (s, a) => {
-      if (s.homeId !== a.meta.requestId) return;
-      s.home = a.payload;
+      if (s.homeId !== a.meta.requestId || s.homePin !== a.payload.pinCode) return;
+      s.home = a.payload.result;
       s.homeLoading = false;
       s.homeId = null;
     });

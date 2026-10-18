@@ -12,6 +12,7 @@ import {
   fetchBag,
   fetchCatalog,
   fetchAddresses,
+  fetchHome,
   actions,
 } from "../src/state/store";
 import type { Session, Product, Cart, Quote, Address } from "../src/models";
@@ -85,6 +86,32 @@ const response = (data: unknown, status = 200) =>
     headers: { "Content-Type": "application/json" },
   });
 describe("secure sessions and requests", () => {
+  it("does not rotate a token twice when an older request returns 401 late", async () => {
+    const manager = createSessionManager(storage());
+    await manager.save(customer);
+    const lateResponse = deferred<Response>();
+    let refreshCount = 0;
+    const fetcher = vi.fn(async (url: RequestInfo | URL, options?: RequestInit) => {
+      const path = String(url);
+      if (path.endsWith("/auth/refresh-token")) {
+        refreshCount++;
+        return response({ accessToken: "new-access", refreshToken: "new-refresh" });
+      }
+      const token = (options?.headers as Record<string,string>).Authorization;
+      if (path.endsWith("/cart") && token === "Bearer access")
+        return lateResponse.promise;
+      return token === "Bearer new-access"
+        ? response({ success: true })
+        : response({ message: "Expired" }, 401);
+    });
+    const api = createApiClient("https://example.test", manager, fetcher);
+    const first = api.request("/cart", { auth: "required" });
+    await api.request("/wishlist", { auth: "required" });
+    lateResponse.resolve(response({ message: "Expired" }, 401));
+    await expect(first).resolves.toMatchObject({ success: true });
+    expect(refreshCount).toBe(1);
+    expect(manager.get()?.accessToken).toBe("new-access");
+  });
   it("keeps a saved sign-in when refresh fails due to connectivity", async () => {
     const deviceStorage = storage();
     const manager = createSessionManager(deviceStorage);
@@ -509,5 +536,48 @@ describe("homepage images and safe address recovery", () => {
     appStore.dispatch(actions.setLocation(locationFromAddress(address)));
     await appStore.dispatch(fetchAddresses());
     expect(appStore.getState().commerce.selectedAddressId).toBeNull();
+  });
+});
+
+describe("location-sensitive homepage requests", () => {
+  it("accepts the new PIN response and ignores a late response from the old PIN", async () => {
+    const manager = createSessionManager(storage());
+    const older = deferred<{ success: boolean; sections: { title: string; products: Product[] }[] }>();
+    const newer = deferred<{ success: boolean; sections: { title: string; products: Product[] }[] }>();
+    const api = {
+      request: vi.fn((path: string) =>
+        path.includes("500001") ? older.promise : newer.promise,
+      ),
+    } as unknown as ReturnType<typeof createApiClient>;
+    const appStore = buildStore({ api, session: manager });
+    appStore.dispatch(actions.setLocation({ label: "Old area", pinCode: "500001" }));
+    const first = appStore.dispatch(fetchHome("500001"));
+    appStore.dispatch(actions.setLocation({ label: "New area", pinCode: "500034" }));
+    const second = appStore.dispatch(fetchHome("500034"));
+    newer.resolve({ success: true, sections: [{ title: "New area picks", products: [] }] });
+    await second;
+    older.resolve({ success: true, sections: [{ title: "Outdated picks", products: [] }] });
+    await first;
+    expect(appStore.getState().catalog.home?.sections?.[0].title).toBe("New area picks");
+    expect(appStore.getState().catalog.homePin).toBe("500034");
+    expect(appStore.getState().catalog.homeLoading).toBe(false);
+  });
+  it("permits fetching a different PIN while the old homepage request is pending", async () => {
+    const manager = createSessionManager(storage());
+    const left = deferred<{ success: boolean }>();
+    const right = deferred<{ success: boolean }>();
+    const api = {
+      request: vi.fn((path: string) =>
+        path.includes("500001") ? left.promise : right.promise,
+      ),
+    } as unknown as ReturnType<typeof createApiClient>;
+    const appStore = buildStore({ api, session: manager });
+    const a = appStore.dispatch(fetchHome("500001"));
+    const b = appStore.dispatch(fetchHome("500034"));
+    expect(api.request).toHaveBeenCalledTimes(2);
+    right.resolve({ success: true });
+    await b;
+    left.resolve({ success: true });
+    await a;
   });
 });

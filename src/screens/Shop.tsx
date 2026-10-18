@@ -61,9 +61,9 @@ export function ProductCard({
 export function Home({ navigate }: { navigate: Navigate }) {
   const dispatch = useAppDispatch();
   const { home, homeLoading, homeError } = useAppSelector((x) => x.catalog);
-  const pin = useAppSelector((x) => x.location?.pinCode);
+  const pin = useAppSelector((x) => x.location?.pinCode) || "";
   useEffect(() => {
-    const job = dispatch(fetchHome());
+    const job = dispatch(fetchHome(pin));
     return () => job.abort();
   }, [dispatch, pin]);
   return (
@@ -73,7 +73,7 @@ export function Home({ navigate }: { navigate: Navigate }) {
       <Text style={s.muted}>Discover the latest collections from Tastha.</Text>
       <Button title="Explore the collection" onPress={() => navigate("Shop")} />
       {homeLoading ? <Loading /> : null}
-      <ErrorBox message={homeError} retry={() => dispatch(fetchHome())} />
+      <ErrorBox message={homeError} retry={() => dispatch(fetchHome(pin))} />
       {home?.banners?.map((b, i) => {
         const banner = imageUrl(
           b.mobileImageUrl || b.imageUrl || b.image,

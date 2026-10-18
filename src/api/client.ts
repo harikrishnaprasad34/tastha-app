@@ -128,11 +128,13 @@ export function createApiClient(
       if (token && epoch !== session.revision())
         throw new ApiError("Your shopping session changed. Retry.");
       if (result.response.status === 401 && token) {
-        await rotate(epoch);
+        // A different request may already have refreshed a one-time token.
+        // A late 401 from the old token must not rotate (and invalidate) it again.
+        if (session.get()?.accessToken === token) await rotate(epoch);
         if (options.signal?.aborted) throw new ApiError("Request cancelled.");
-        if (epoch !== session.revision())
+        if (epoch !== session.revision() || !session.get()?.accessToken)
           throw new ApiError("Your session changed.");
-        result = await raw(path, options, session.get()?.accessToken);
+        result = await raw(path, options, session.get()!.accessToken);
       }
       if (auth !== "none" && epoch !== session.revision())
         throw new ApiError("Your shopping session changed. Retry.");
