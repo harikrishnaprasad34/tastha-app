@@ -19,6 +19,7 @@ import type {
   User,
 } from "../models";
 import { mergeProducts } from "../shared/catalog";
+import { loadStorefrontHome } from "../api/home";
 
 interface Catalog {
   items: Product[];
@@ -139,10 +140,7 @@ export const fetchCatalog = thunk(
 export const fetchHome = thunk(
   "catalog/home",
   async (pinCode: string, { extra, signal }) => {
-    const result = await extra.api.request<Discovery>(
-      "/home/discovery?deliveryPinCode=" + encode(pinCode),
-      { signal },
-    );
+    const result = await loadStorefrontHome(extra.api, pinCode, signal);
     return { result, pinCode };
   },
   {

@@ -68,10 +68,18 @@ export function Home({ navigate }: { navigate: Navigate }) {
   }, [dispatch, pin]);
   return (
     <ScrollView contentContainerStyle={s.content}>
-      <Text style={s.muted}>THE TASTHA EDIT</Text>
-      <Text style={s.title}>Wear your story.</Text>
-      <Text style={s.muted}>Discover the latest collections from Tastha.</Text>
-      <Button title="Explore the collection" onPress={() => navigate("Shop")} />
+      <Text style={[s.muted, { color: "#D4AF37", letterSpacing: 2 }]}>
+        CRAFTED TO STAND OUT
+      </Text>
+      <Text style={s.title}>Luxury Fashion, Curated For Every Occasion.</Text>
+      <Text style={s.muted}>
+        {home?.banners?.[0]?.description ||
+          "Explore Tastha’s latest fashion collections."}
+      </Text>
+      <View style={s.row}>
+        <Button title="Explore Collection" onPress={() => navigate("Shop")} />
+        <Button title="AI Outfit Finder" outline onPress={() => navigate("AI")} />
+      </View>
       {homeLoading ? <Loading /> : null}
       <ErrorBox message={homeError} retry={() => dispatch(fetchHome(pin))} />
       {home?.banners?.map((b, i) => {
@@ -101,27 +109,84 @@ export function Home({ navigate }: { navigate: Navigate }) {
       })}
       {home?.categories?.length ? (
         <View style={{ gap: 12 }}>
-          <Text style={s.heading}>Explore categories</Text>
-          <View style={s.row}>
-            {home.categories.map((category, i) => (
-              <Pressable
-                key={category.slug || category.name + i}
-                accessibilityRole="button"
-                onPress={() => navigate("Shop", category.slug || category.name)}
-                style={s.pill}
-              >
-                <Text style={s.text}>{category.name}</Text>
-              </Pressable>
-            ))}
+          <Text style={s.muted}>BROWSE</Text>
+          <Text style={s.heading}>Shop By Category</Text>
+          <View style={[s.row, { alignItems: "stretch" }]}>
+            {home.categories.map((category, i) => {
+              const thumbnail = imageUrl(category.image, API_ORIGIN);
+              return (
+                <Pressable
+                  key={category.slug || category.name + i}
+                  accessibilityRole="button"
+                  accessibilityLabel={"Shop " + category.name}
+                  onPress={() => navigate("Shop", category.slug || category.name)}
+                  style={[s.panel, { width: "46%", padding: 8, gap: 6 }]}
+                >
+                  {thumbnail ? (
+                    <Image
+                      source={{ uri: thumbnail }}
+                      style={{ width: "100%", height: 105, borderRadius: 8 }}
+                      resizeMode="cover"
+                      accessibilityLabel={category.name}
+                    />
+                  ) : null}
+                  <Text style={s.text}>{category.name}</Text>
+                  {typeof category.productCount === "number" ? (
+                    <Text style={s.muted}>{category.productCount} products</Text>
+                  ) : null}
+                </Pressable>
+              );
+            })}
           </View>
+        </View>
+      ) : null}
+      {home?.occasions?.length ? (
+        <View style={{ gap: 12 }}>
+          <Text style={s.muted}>PERSONALIZED FOR YOU</Text>
+          <Text style={s.heading}>Dress Smarter With AI</Text>
+          <Text style={s.muted}>Choose your occasion on Tastha.</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={s.row}>
+              {home.occasions.map((occasion, i) => {
+                const label = occasion.title || occasion.name || "Occasion";
+                const image = imageUrl(occasion.image, API_ORIGIN);
+                return (
+                  <Pressable
+                    key={occasion._id || occasion.slug || String(i)}
+                    accessibilityRole="button"
+                    onPress={() => navigate("AI")}
+                    style={[s.panel, { width: 155, padding: 8 }]}
+                  >
+                    {image ? (
+                      <Image
+                        source={{ uri: image }}
+                        style={{ height: 115, width: "100%", borderRadius: 8 }}
+                        resizeMode="cover"
+                      />
+                    ) : null}
+                    <Text style={s.text}>{label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </ScrollView>
         </View>
       ) : null}
       {home?.sections?.map((section, i) => (
         <View key={section.id || i} style={{ gap: 12 }}>
           <Text style={s.heading}>{section.title}</Text>
-          {section.products?.slice(0, 6).map((p) => (
-            <ProductCard key={p._id} product={p} navigate={navigate} />
-          ))}
+          <View style={[s.row, { alignItems: "stretch" }]}>
+            {section.products?.slice(0, 6).map((p) => (
+              <View key={p._id} style={{ width: "46%" }}>
+                <ProductCard product={p} navigate={navigate} />
+              </View>
+            ))}
+          </View>
+          <Button
+            title="View Collection"
+            outline
+            onPress={() => navigate("Shop")}
+          />
         </View>
       ))}
       {home && !home.sections?.some((x) => x.products?.length) ? (

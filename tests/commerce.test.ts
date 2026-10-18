@@ -7,6 +7,7 @@ import {
 } from "../src/shared/deliveryLocation";
 import { createSessionManager } from "../src/api/session";
 import { createApiClient } from "../src/api/client";
+import { loadStorefrontHome } from "../src/api/home";
 import { customerLoginPayload } from "../src/api/authPayload";
 import { createCheckout, type Attempt } from "../src/api/checkout";
 import { mergeProducts, productImages, imageUrl } from "../src/shared/catalog";
@@ -545,46 +546,75 @@ describe("homepage images and safe address recovery", () => {
   });
 });
 
-describe("location-sensitive homepage requests", () => {
-  it("accepts the new PIN response and ignores a late response from the old PIN", async () => {
+describe("website homepage endpoint parity", () => {
+  it("loads the same CMS sections as the website without /home/discovery", async () => {
     const manager = createSessionManager(storage());
-    const older = deferred<{ success: boolean; sections: { title: string; products: Product[] }[] }>();
-    const newer = deferred<{ success: boolean; sections: { title: string; products: Product[] }[] }>();
+    const calls: string[] = [];
     const api = {
-      request: vi.fn((path: string) =>
-        path.includes("500001") ? older.promise : newer.promise,
-      ),
+      request: vi.fn(async (path: string) => {
+        calls.push(path);
+        if (path.startsWith("/home/banners")) return {
+          banners: [{ title: "Tastha", image: "https://example.com/hero.png" }],
+        };
+        if (path.startsWith("/home/categories")) return {
+          categories: [{ name: "Shirts", slug: "shirts", productCount: 8 }],
+        };
+        if (path.startsWith("/home/trending")) return { products: [product] };
+        if (path.startsWith("/home/new-arrivals")) return { products: [product] };
+        if (path.startsWith("/home/occasions")) return {
+          occasions: [{ name: "Wedding", slug: "wedding" }],
+        };
+        throw Error("Unexpected endpoint: " + path);
+      }),
     } as unknown as ReturnType<typeof createApiClient>;
     const appStore = buildStore({ api, session: manager });
-    appStore.dispatch(actions.setLocation({ label: "Old area", pinCode: "500001" }));
-    const first = appStore.dispatch(fetchHome("500001"));
-    appStore.dispatch(actions.setLocation({ label: "New area", pinCode: "500034" }));
-    const second = appStore.dispatch(fetchHome("500034"));
-    newer.resolve({ success: true, sections: [{ title: "New area picks", products: [] }] });
-    await second;
-    older.resolve({ success: true, sections: [{ title: "Outdated picks", products: [] }] });
-    await first;
-    expect(appStore.getState().catalog.home?.sections?.[0].title).toBe("New area picks");
-    expect(appStore.getState().catalog.homePin).toBe("500034");
-    expect(appStore.getState().catalog.homeLoading).toBe(false);
+    const result = await appStore.dispatch(fetchHome("500034"));
+    expect(result.meta.requestStatus).toBe("fulfilled");
+    expect(appStore.getState().catalog.home?.banners?.[0].title).toBe("Tastha");
+    expect(appStore.getState().catalog.home?.categories?.[0].slug).toBe("shirts");
+    expect(appStore.getState().catalog.home?.occasions?.[0].slug).toBe("wedding");
+    expect(appStore.getState().catalog.home?.sections?.map(x => x.id))
+      .toEqual(["trending", "new"]);
+    expect(calls).toHaveLength(5);
+    expect(calls.every(path => !path.includes("/home/discovery"))).toBe(true);
   });
-  it("permits fetching a different PIN while the old homepage request is pending", async () => {
+  it("renders available sections when one CMS endpoint fails", async () => {
+    const api = {
+      request: vi.fn(async (path: string) => {
+        if (path.startsWith("/home/banners")) throw Error("Banners offline");
+        if (path.startsWith("/home/trending")) return { products: [product] };
+        return { categories: [], products: [], occasions: [] };
+      }),
+    } as unknown as ReturnType<typeof createApiClient>;
+    const result = await loadStorefrontHome(api, "500001");
+    expect(result.banners).toEqual([]);
+    expect(result.sections?.[0].title).toBe("Trending Now");
+  });
+  it("rejects a fully unavailable homepage instead of showing invented content", async () => {
+    const api = {
+      request: vi.fn(async () => { throw Error("Offline"); }),
+    } as unknown as ReturnType<typeof createApiClient>;
+    await expect(loadStorefrontHome(api, "")).rejects.toThrow("Cannot load");
+  });
+  it("ignores stale homepage data when location changes during a request", async () => {
     const manager = createSessionManager(storage());
-    const left = deferred<{ success: boolean }>();
-    const right = deferred<{ success: boolean }>();
+    const old = deferred<unknown>();
+    const next = deferred<unknown>();
     const api = {
       request: vi.fn((path: string) =>
-        path.includes("500001") ? left.promise : right.promise,
+        path.includes("500001") ? old.promise : next.promise,
       ),
     } as unknown as ReturnType<typeof createApiClient>;
     const appStore = buildStore({ api, session: manager });
-    const a = appStore.dispatch(fetchHome("500001"));
-    const b = appStore.dispatch(fetchHome("500034"));
-    expect(api.request).toHaveBeenCalledTimes(2);
-    right.resolve({ success: true });
-    await b;
-    left.resolve({ success: true });
-    await a;
+    const first = appStore.dispatch(fetchHome("500001"));
+    const second = appStore.dispatch(fetchHome("500034"));
+    next.resolve({ products: [product] });
+    await second;
+    old.resolve({ products: [] });
+    await first;
+    expect(appStore.getState().catalog.homePin).toBe("500034");
+    expect(appStore.getState().catalog.home?.sections?.length).toBe(2);
+    expect(api.request).toHaveBeenCalledTimes(10);
   });
 });
 

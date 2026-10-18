@@ -113,9 +113,23 @@ export interface Discovery {
     imageUrl?: string;
     mobileImageUrl?: string;
     link?: string;
+    description?: string;
+    ctaLink?: string;
+  }[];
+  occasions?: {
+    _id?: string;
+    name?: string;
+    title?: string;
+    slug?: string;
+    image?: unknown;
   }[];
   sections?: { id?: string; title: string; products: Product[] }[];
-  categories?: { name: string; slug?: string }[];
+  categories?: {
+    name: string;
+    slug?: string;
+    image?: unknown;
+    productCount?: number;
+  }[];
   delivery?: { serviceable?: boolean; message?: string };
 }
 export interface Page {
