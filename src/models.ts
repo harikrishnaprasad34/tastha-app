@@ -141,7 +141,13 @@ export interface Discovery {
 export interface Page {
   success: boolean;
   products: Product[];
-  pagination: { page: number; total: number; hasNextPage: boolean };
+  pagination: {
+    page: number;
+    total: number;
+    hasNextPage?: boolean;
+    totalPages?: number;
+    limit?: number;
+  };
   delivery?: { serviceable?: boolean; message?: string };
 }
 export interface CatalogFilter {

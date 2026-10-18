@@ -9,6 +9,7 @@ import { createSessionManager } from "../src/api/session";
 import { createApiClient } from "../src/api/client";
 import { loadStorefrontHome } from "../src/api/home";
 import { filterCustomerOrders, orderCanBeCancelled } from "../src/shared/orders";
+import { normalizeProductPage } from "../src/shared/catalogPage";
 import { customerLoginPayload } from "../src/api/authPayload";
 import { mergeProfileUser } from "../src/api/profile";
 import { createCheckout, type Attempt } from "../src/api/checkout";
@@ -749,5 +750,28 @@ describe("saved profile integration", () => {
   it("rejects a response for another account", () => {
     expect(() => mergeProfileUser(customer.user, { _id: "other" })).toThrow("different account");
     expect(() => mergeProfileUser(customer.user, { id: "other" })).toThrow("different account");
+  });
+});
+
+describe("website products endpoint compatibility", () => {
+  it("derives hasNextPage from totalPages when using the website response", () => {
+    const payload = {
+      success: true,
+      products: [product],
+      pagination: { page: 1, limit: 20, total: 22, totalPages: 2 },
+    };
+    expect(normalizeProductPage(payload, 1).pagination.hasNextPage).toBe(true);
+    expect(normalizeProductPage({
+      ...payload,
+      pagination: { ...payload.pagination, page: 2 },
+    }, 2).pagination.hasNextPage).toBe(false);
+  });
+  it("handles empty backend results and rejects invalid page numbers", () => {
+    expect(normalizeProductPage({
+      success: true, products: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
+    }, 1).pagination.hasNextPage).toBe(false);
+    expect(() => normalizeProductPage({
+      success: true, products: [product], pagination: { page: 1, limit: 20, total: 1, totalPages: 1 },
+    }, 2)).toThrow("paging");
   });
 });

@@ -20,6 +20,7 @@ import type {
 } from "../models";
 import { mergeProducts } from "../shared/catalog";
 import { loadStorefrontHome } from "../api/home";
+import { normalizeProductPage } from "../shared/catalogPage";
 
 interface Catalog {
   items: Product[];
@@ -112,13 +113,8 @@ export const fetchCatalog = thunk(
     if (filter.search.trim()) q.set("search", filter.search.trim());
     if (filter.category) q.set("category", filter.category);
     if (filter.maxPrice) q.set("maxPrice", filter.maxPrice);
-    const result = await extra.api.request<Page>("/products?" + q, { signal });
-    if (
-      !Array.isArray(result.products) ||
-      typeof result.pagination?.hasNextPage !== "boolean" ||
-      result.pagination.page !== page
-    )
-      throw Error("Product paging is temporarily unavailable. Retry.");
+    const response = await extra.api.request<Page>("/products?" + q, { signal });
+    const result = normalizeProductPage(response, page);
     return { result, key };
   },
   {
@@ -316,7 +312,7 @@ const catalog = createSlice({
       s.items = mergeProducts(s.items, a.payload.result.products);
       s.page = a.payload.result.pagination.page;
       s.total = a.payload.result.pagination.total;
-      s.hasMore = a.payload.result.pagination.hasNextPage;
+      s.hasMore = a.payload.result.pagination.hasNextPage === true;
       s.loading = false;
       s.requestId = null;
     });
