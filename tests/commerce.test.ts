@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { describeDetectedPlace, locationFromAddress, parseSavedLocation } from "../src/shared/deliveryLocation";
 import { createSessionManager } from "../src/api/session";
 import { createApiClient } from "../src/api/client";
 import { createCheckout, type Attempt } from "../src/api/checkout";
@@ -363,4 +364,35 @@ it("never substitutes another colour when the selected variant has no photo", ()
       product.variants![1],
     ),
   ).toEqual([]);
+});
+
+describe("first-run delivery flow", () => {
+  it("restores a confirmed address but rejects bad PIN or malformed data", () => {
+    expect(parseSavedLocation(JSON.stringify({
+      label: "Road No 12, Banjara Hills",
+      pinCode: "500034",
+      lat: 17.41,
+      lng: 78.44,
+    }))?.label).toBe("Road No 12, Banjara Hills");
+    expect(parseSavedLocation('{"label":"Area","pinCode":"123"}')).toBeNull();
+    expect(parseSavedLocation("not-json")).toBeNull();
+  });
+  it("uses a detected street instead of broad city or area only", () => {
+    expect(describeDetectedPlace({
+      streetNumber: "12",
+      street: "Road",
+      district: "Banjara Hills",
+      city: "Hyderabad",
+      postalCode: "500034",
+    }, { displayAddress: "Hyderabad", pinCode: "500001" })).toEqual({
+      label: "12 Road, Banjara Hills, Hyderabad",
+      pinCode: "500034",
+    });
+  });
+  it("supports a manual or saved-address fallback without coordinates", () => {
+    const place = locationFromAddress(address);
+    expect(place.pinCode).toBe("500001");
+    expect(place.label).toContain("Sample road");
+    expect(place.lat).toBeUndefined();
+  });
 });

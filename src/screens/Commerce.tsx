@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ScrollView, Text, View, Pressable, Alert } from "react-native";
 import { api, session } from "../api/runtime";
+import { saveDeliveryLocation } from "../api/deliveryLocation";
+import { locationFromAddress } from "../shared/deliveryLocation";
 import {
   checkoutForCurrentSession,
   hasNativePayments,
@@ -214,24 +216,48 @@ export function Addresses({ navigate }: { navigate: Navigate }) {
   const { addresses, selectedAddressId, pending, errors } = useAppSelector(
     (x) => x.commerce,
   );
+  const [locationError, setLocationError] = useState("");
+  const [selecting, setSelecting] = useState(false);
   useEffect(() => {
     dispatch(fetchAddresses());
   }, [dispatch]);
+
+  async function choose(address: (typeof addresses)[number]) {
+    if (selecting) return;
+    setSelecting(true);
+    setLocationError("");
+    try {
+      const delivery = locationFromAddress(address);
+      await saveDeliveryLocation(delivery);
+      dispatch(actions.selectAddress(address._id));
+      dispatch(actions.setLocation(delivery));
+    } catch {
+      setLocationError("Delivery location could not be saved. Try selecting again.");
+    } finally {
+      setSelecting(false);
+    }
+  }
+
   return (
     <ScrollView contentContainerStyle={s.content}>
       <Text style={s.title}>Saved addresses</Text>
+      <Text style={s.muted}>
+        Select an address to use it for checkout and to refresh products in your
+        delivery area.
+      </Text>
       {pending.addresses ? <Loading /> : null}
       <ErrorBox
-        message={errors.addresses}
+        message={errors.addresses || locationError}
         retry={() => dispatch(fetchAddresses())}
       />
       {addresses.map((a) => (
         <Pressable
           key={a._id}
+          disabled={selecting}
           accessibilityRole="radio"
-          accessibilityState={{ checked: a._id === selectedAddressId }}
+          accessibilityState={{ checked: a._id === selectedAddressId, disabled: selecting }}
           style={[s.panel, a._id === selectedAddressId && s.active]}
-          onPress={() => dispatch(actions.selectAddress(a._id))}
+          onPress={() => { void choose(a); }}
         >
           <Text style={s.heading}>{a.fullName}</Text>
           <Text style={s.text}>

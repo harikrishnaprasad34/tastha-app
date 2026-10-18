@@ -3,7 +3,7 @@ import { BackHandler, Pressable, Text, View } from "react-native";
 import { Provider } from "react-redux";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import * as SecureStore from "expo-secure-store";
+import { readDeliveryLocation } from "./src/api/deliveryLocation";
 import { session } from "./src/api/runtime";
 import { store, useAppDispatch, useAppSelector } from "./src/state";
 import { actions } from "./src/state/store";
@@ -61,18 +61,19 @@ function Application() {
       let failure: string | undefined;
       try {
         await session.restore();
-        const raw = await SecureStore.getItemAsync("tastha.delivery.v1");
-        if (raw) {
-          const l = JSON.parse(raw);
-          if (
-            typeof l.label === "string" &&
-            /^[1-9]\d{5}$/.test(l.pinCode) &&
-            active
-          )
-            dispatch(actions.setLocation(l));
+      } catch {
+        failure = "Your saved sign-in could not be opened. Retry after unlocking the device.";
+      }
+      try {
+        const saved = await readDeliveryLocation();
+        if (active) {
+          if (saved) dispatch(actions.setLocation(saved));
+          else setStack([{ name: "Location" }]);
         }
       } catch {
-        failure = "Saved sign-in or delivery settings could not be restored.";
+        // Delivery preferences should never prevent shopping or account restoration.
+        if (active) setStack([{ name: "Location" }]);
+        failure = failure || "Delivery preferences could not be restored.";
       } finally {
         if (active) dispatch(actions.ready(failure));
       }

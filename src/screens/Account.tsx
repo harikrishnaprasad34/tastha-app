@@ -3,7 +3,8 @@ import { ScrollView, Text, View, Alert } from "react-native";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import * as Location from "expo-location";
-import * as SecureStore from "expo-secure-store";
+import { saveDeliveryLocation } from "../api/deliveryLocation";
+import { describeDetectedPlace, validPinCode } from "../shared/deliveryLocation";
 import { api, session } from "../api/runtime";
 import { API_URL } from "../config";
 import type { Session } from "../models";
@@ -238,90 +239,146 @@ export function AddressForm({ navigate }: { navigate: Navigate }) {
 export function LocationPicker({ navigate }: { navigate: Navigate }) {
   const dispatch = useAppDispatch();
   const selected = useAppSelector((x) => x.location);
-  const [pin, setPin] = useState(selected?.pinCode || ""),
-    [label, setLabel] = useState(selected?.label || ""),
-    [coordinates, setCoordinates] = useState<
-      { lat: number; lng: number; accuracy?: number } | undefined
-    >(),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
+  const user = useAppSelector((x) => x.auth.user);
+  const [pin, setPin] = useState(selected?.pinCode || "");
+  const [label, setLabel] = useState(selected?.label || "");
+  const [coordinates, setCoordinates] = useState<
+    { lat: number; lng: number; accuracy?: number } | undefined
+  >();
+  const [showFields, setShowFields] = useState(Boolean(selected));
+  const [accuracyNote, setAccuracyNote] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
   async function detect() {
+    if (busy) return;
     setBusy(true);
     setError("");
+    setAccuracyNote("");
     try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (permission.status !== "granted")
+      const servicesEnabled = await Location.hasServicesEnabledAsync();
+      if (!servicesEnabled)
+        throw Error("Turn on device Location Services, or enter your PIN manually.");
+      const currentPermission = await Location.getForegroundPermissionsAsync();
+      const permission = currentPermission.granted
+        ? currentPermission
+        : currentPermission.canAskAgain
+          ? await Location.requestForegroundPermissionsAsync()
+          : currentPermission;
+      if (!permission.granted)
         throw Error(
-          "Location permission was denied. Enter your delivery PIN manually.",
+          "Tastha does not have location access. Allow it in phone settings, or enter your delivery PIN.",
         );
-      const position = await Promise.race([
-        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
-        new Promise<never>((_, reject) =>
-          setTimeout(
-            () =>
-              reject(
-                Error("Location timed out. Enter your delivery PIN manually."),
-              ),
-            15000,
-          ),
-        ),
-      ]);
+
+      // A fresh cached fix avoids waiting for GPS when already sufficiently precise.
+      const cached = await Location.getLastKnownPositionAsync({
+        maxAge: 60000,
+        requiredAccuracy: 100,
+      }).catch(() => null);
+      let position = cached;
+      if (!position) {
+        let timeout: ReturnType<typeof setTimeout> | undefined;
+        try {
+          position = await Promise.race([
+            Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.High,
+              mayShowUserSettingsDialog: true,
+            }),
+            new Promise<never>((_, reject) => {
+              timeout = setTimeout(
+                () => reject(Error("Location took too long. Try again or enter a PIN.")),
+                14000,
+              );
+            }),
+          ]);
+        } finally {
+          if (timeout) clearTimeout(timeout);
+        }
+      }
+      if (!position) throw Error("Current location is unavailable.");
       const coords = {
         lat: position.coords.latitude,
         lng: position.coords.longitude,
         accuracy: position.coords.accuracy ?? undefined,
       };
       setCoordinates(coords);
+      setShowFields(true);
       setPin("");
       setLabel("");
-      const r = await api.request<{
-        location: {
-          pinCode?: string;
-          pincode?: string;
-          postcode?: string;
-          displayAddress?: string;
-          address?: string;
-          city?: string;
-        };
-      }>("/location/reverse?lat=" + coords.lat + "&lng=" + coords.lng);
-      const l = r.location;
-      setPin(l.pinCode || l.pincode || l.postcode || "");
-      setLabel(l.displayAddress || l.address || l.city || "");
+      const point = { latitude: coords.lat, longitude: coords.lng };
+      const native = await Location.reverseGeocodeAsync(point)
+        .then((items) => items[0] ?? null)
+        .catch(() => null);
+      let server = null;
+      if (!native?.postalCode || !native?.street) {
+        try {
+          const result = await api.request<{
+            location?: {
+              pinCode?: string;
+              pincode?: string;
+              postcode?: string;
+              displayAddress?: string;
+              address?: string;
+              city?: string;
+            };
+          }>(
+            "/location/reverse?lat=" + encodeURIComponent(coords.lat) +
+              "&lng=" + encodeURIComponent(coords.lng),
+            { timeout: 7000 },
+          );
+          server = result.location || null;
+        } catch {
+          // Native geocoding or manual confirmation remains available.
+        }
+      }
+      const resolved = describeDetectedPlace(native, server);
+      setPin(resolved.pinCode);
+      setLabel(resolved.label);
+      const radius = coords.accuracy == null
+        ? "Accuracy is unavailable"
+        : "Estimated accuracy: " + Math.round(coords.accuracy) + " m";
+      setAccuracyNote(
+        radius + (cached ? " (recent device position)." : ".") +
+          " Check your road, landmark and PIN before confirming." +
+          (position.mocked ? " The device reports a simulated position." : ""),
+      );
+      if (!validPinCode(resolved.pinCode) || !resolved.label)
+        setError(
+          "We found your approximate position but not a complete street and PIN. Add or correct them below.",
+        );
     } catch (e) {
+      setShowFields(true);
       setError(
-        e instanceof Error
-          ? e.message
-          : "Location is unavailable. Enter your PIN.",
+        e instanceof Error ? e.message : "Location is unavailable. Enter your delivery PIN.",
       );
     } finally {
       setBusy(false);
     }
   }
+
   async function confirm() {
     setError("");
-    if (!/^[1-9]\d{5}$/.test(pin)) {
+    if (!validPinCode(pin)) {
       setError("Enter a valid six-digit Indian delivery PIN.");
+      return;
+    }
+    if (!label.trim()) {
+      setError("Enter or confirm the delivery street or area.");
       return;
     }
     setBusy(true);
     try {
-      const next = {
-        label: label.trim() || "PIN " + pin,
-        pinCode: pin,
-        ...coordinates,
-      };
-      await SecureStore.setItemAsync(
-        "tastha.delivery.v1",
-        JSON.stringify(next),
-      );
+      const next = { label: label.trim(), pinCode: pin, ...coordinates };
+      await saveDeliveryLocation(next);
       dispatch(actions.setLocation(next));
       navigate("Home");
     } catch {
-      setError("Could not save the location. Please retry.");
+      setError("Could not save the delivery location. Please retry.");
     } finally {
       setBusy(false);
     }
   }
+
   return (
     <ScrollView
       keyboardShouldPersistTaps="handled"
@@ -329,43 +386,66 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
     >
       <Text style={s.title}>Where should we deliver?</Text>
       <Text style={s.muted}>
-        Device positioning can be approximate. Confirm your PIN and area before
-        shopping.
+        Find your nearby road or area for relevant products. Tastha asks for
+        location permission only when you choose current location.
       </Text>
-      <Button title="Use device location" busy={busy} onPress={detect} />
-      {coordinates ? (
+      <View style={s.panel}>
+        <Text style={s.heading}>Use your current location</Text>
         <Text style={s.muted}>
-          Estimated device accuracy:{" "}
-          {coordinates.accuracy
-            ? Math.round(coordinates.accuracy) + " metres"
-            : "unknown"}
-          . Correct the area and PIN below if needed.
+          We will suggest an address for you to check, not automatically
+          replace a saved delivery location.
+        </Text>
+        <Button
+          title="Detect my current location"
+          busy={busy}
+          onPress={detect}
+        />
+      </View>
+      {selected ? (
+        <Text style={s.muted}>
+          Current selection: {selected.label} {selected.pinCode || ""}
         </Text>
       ) : null}
-      <Field
-        label="Area / location label"
-        value={label}
-        onChangeText={(value) => {
-          setLabel(value);
-          setCoordinates(undefined);
-        }}
-      />
-      <Field
-        label="Delivery PIN code"
-        value={pin}
-        maxLength={6}
-        keyboardType="number-pad"
-        onChangeText={(value) => {
-          setPin(value);
-          setCoordinates(undefined);
-        }}
-      />
+      {!showFields ? (
+        <Button
+          title="Enter area or PIN manually"
+          outline
+          onPress={() => setShowFields(true)}
+        />
+      ) : (
+        <View style={s.panel}>
+          <Text style={s.heading}>Confirm delivery address</Text>
+          {accuracyNote ? <Text style={s.muted}>{accuracyNote}</Text> : null}
+          <Field
+            label="Street, road or area"
+            value={label}
+            placeholder="Road number, landmark or locality"
+            onChangeText={(value) => {
+              setLabel(value);
+              setCoordinates(undefined);
+            }}
+          />
+          <Field
+            label="Six-digit delivery PIN"
+            value={pin}
+            maxLength={6}
+            keyboardType="number-pad"
+            onChangeText={(value) => {
+              setPin(value);
+              setCoordinates(undefined);
+            }}
+          />
+          <Button title="Confirm delivery location" busy={busy} onPress={confirm} />
+        </View>
+      )}
+      {user ? (
+        <Button title="Choose a saved address" outline onPress={() => navigate("Addresses")} />
+      ) : null}
       <ErrorBox message={error} />
-      <Button title="Confirm location" busy={busy} onPress={confirm} />
+      <Button title="Browse without location" outline onPress={() => navigate("Home")} />
       <Text style={s.muted}>
-        Product availability is refreshed after confirmation. Final delivery
-        eligibility is verified against your full checkout address. A map-pin
-        editor is not yet available in this native build.
+        The product list updates for your confirmed PIN. Final delivery
+        eligibility is checked using the full address at checkout.
       </Text>
     </ScrollView>
   );
