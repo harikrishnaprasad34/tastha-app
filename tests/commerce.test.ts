@@ -3,7 +3,7 @@ import { describeDetectedPlace, locationFromAddress, parseSavedLocation } from "
 import { createSessionManager } from "../src/api/session";
 import { createApiClient } from "../src/api/client";
 import { createCheckout, type Attempt } from "../src/api/checkout";
-import { mergeProducts, productImages } from "../src/shared/catalog";
+import { mergeProducts, productImages, imageUrl } from "../src/shared/catalog";
 import { getVariantAvailability } from "../src/shared/productAvailability";
 import { isValidCheckoutQuote } from "../src/shared/checkoutQuote";
 import {
@@ -468,5 +468,25 @@ describe("catalog pagination protection", () => {
     await appStore.dispatch(fetchCatalog({ filter, page: 3, key: "current" }));
     await appStore.dispatch(fetchCatalog({ filter, page: 2, key: "outdated" }));
     expect(api.request).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("homepage images and safe address recovery", () => {
+  it("uses only HTTPS banner imagery", () => {
+    expect(imageUrl("https://assets.example.test/banner.png", "https://api.example.test"))
+      .toBe("https://assets.example.test/banner.png");
+    expect(imageUrl("javascript:alert(1)", "https://api.example.test"))
+      .toBeUndefined();
+  });
+  it("rejects the saved address when its server PIN changed", async () => {
+    const manager = createSessionManager(storage());
+    const stale = { ...address, pinCode: "500099" };
+    const api = {
+      request: vi.fn(async () => ({ addresses: [stale] })),
+    } as unknown as ReturnType<typeof createApiClient>;
+    const appStore = buildStore({ api, session: manager });
+    appStore.dispatch(actions.setLocation(locationFromAddress(address)));
+    await appStore.dispatch(fetchAddresses());
+    expect(appStore.getState().commerce.selectedAddressId).toBeNull();
   });
 });

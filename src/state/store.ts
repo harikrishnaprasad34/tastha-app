@@ -399,7 +399,11 @@ const commerce = createSlice({
       const { addresses, preferredAddressId, pinCode } = a.payload;
       const isMatching = (id: string | null | undefined) =>
         addresses.find((address) => address._id === id);
-      const preferred = isMatching(preferredAddressId);
+      const savedPreferred = isMatching(preferredAddressId);
+      const preferred =
+        savedPreferred && (!pinCode || savedPreferred.pinCode === pinCode)
+          ? savedPreferred
+          : undefined;
       const selected = isMatching(s.selectedAddressId);
       const byPin = pinCode
         ? addresses.find((address) => address.pinCode === pinCode)

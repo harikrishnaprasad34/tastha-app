@@ -18,7 +18,7 @@ import {
   changeBag,
   changeWishlist,
 } from "../state/store";
-import { productImages, money } from "../shared/catalog";
+import { productImages, imageUrl, money } from "../shared/catalog";
 import { getVariantAvailability } from "../shared/productAvailability";
 import {
   Button,
@@ -74,17 +74,48 @@ export function Home({ navigate }: { navigate: Navigate }) {
       <Button title="Explore the collection" onPress={() => navigate("Shop")} />
       {homeLoading ? <Loading /> : null}
       <ErrorBox message={homeError} retry={() => dispatch(fetchHome())} />
-      {home?.banners?.map((b, i) => (
-        <View key={i} style={s.panel}>
-          <Text style={s.heading}>{b.title}</Text>
-          <Text style={s.muted}>{b.subtitle}</Text>
-          <Button
-            title="Shop collection"
-            outline
-            onPress={() => navigate("Shop")}
-          />
+      {home?.banners?.map((b, i) => {
+        const banner = imageUrl(
+          b.mobileImageUrl || b.imageUrl || b.image,
+          API_ORIGIN,
+        );
+        return (
+          <View key={i} style={s.panel}>
+            {banner ? (
+              <Image
+                source={{ uri: banner }}
+                style={[s.image, { height: 180, borderRadius: 12 }]}
+                resizeMode="cover"
+                accessibilityLabel={b.title || "Tastha collection"}
+              />
+            ) : null}
+            {b.title ? <Text style={s.heading}>{b.title}</Text> : null}
+            {b.subtitle ? <Text style={s.muted}>{b.subtitle}</Text> : null}
+            <Button
+              title="Shop collection"
+              outline
+              onPress={() => navigate("Shop")}
+            />
+          </View>
+        );
+      })}
+      {home?.categories?.length ? (
+        <View style={{ gap: 12 }}>
+          <Text style={s.heading}>Explore categories</Text>
+          <View style={s.row}>
+            {home.categories.map((category, i) => (
+              <Pressable
+                key={category.slug || category.name + i}
+                accessibilityRole="button"
+                onPress={() => navigate("Shop")}
+                style={s.pill}
+              >
+                <Text style={s.text}>{category.name}</Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
-      ))}
+      ) : null}
       {home?.sections?.map((section, i) => (
         <View key={section.id || i} style={{ gap: 12 }}>
           <Text style={s.heading}>{section.title}</Text>
@@ -236,7 +267,14 @@ export function ProductDetail({
   const variant = product.variants?.find(
     (v) => v.size === size && v.color === color,
   );
-  const images = productImages(product, API_ORIGIN, variant);
+  const imageVariant =
+    variant ||
+    (color
+      ? product.variants?.find(
+          (v) => v.color === color && (v.images?.length || v.image),
+        )
+      : undefined);
+  const images = productImages(product, API_ORIGIN, imageVariant);
   async function add() {
     if (!user) {
       navigate("Login");
