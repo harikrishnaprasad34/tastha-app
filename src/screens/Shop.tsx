@@ -26,6 +26,7 @@ import {
   normalizeRelatedProducts,
 } from "../shared/catalog";
 import { getVariantAvailability } from "../shared/productAvailability";
+import { resolveCatalogCategory, type StoreCategory } from "../shared/catalogPage";
 import {
   Button,
   Empty,
@@ -224,20 +225,48 @@ export function Catalog({
   const dispatch = useAppDispatch();
   const c = useAppSelector((x) => x.catalog);
   const pin = useAppSelector((x) => x.location?.pinCode);
+  const [categories, setCategories] = useState<StoreCategory[]>(
+    c.home?.categories || [],
+  );
+  const [categoryError, setCategoryError] = useState("");
   const [filter, setFilter] = useState<CatalogFilter>({
     search: search || "",
-    category: category || "",
+    category: resolveCatalogCategory(category, c.home?.categories || []),
     sort: "newest",
     maxPrice: "",
   });
   const [query, setQuery] = useState(filter);
   useEffect(() => {
+    const controller = new AbortController();
+    api.request<{ categories?: StoreCategory[] }>(
+      "/home/categories?deliveryPinCode=" + encodeURIComponent(pin || ""),
+      { signal: controller.signal },
+    )
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        if (!Array.isArray(result.categories))
+          throw Error("Categories are unavailable.");
+        setCategories(result.categories.filter(
+          (item) => item && typeof item.name === "string" && item.name.trim(),
+        ));
+        setCategoryError("");
+      })
+      .catch((reason) => {
+        if (!controller.signal.aborted)
+          setCategoryError(
+            reason instanceof Error ? reason.message : "Categories unavailable.",
+          );
+      });
+    return () => controller.abort();
+  }, [pin]);
+  useEffect(() => {
+    const resolved = resolveCatalogCategory(category, categories);
     setFilter((current) =>
-      current.category === (category || "")
+      current.category === resolved
         ? current
-        : { ...current, category: category || "" },
+        : { ...current, category: resolved },
     );
-  }, [category]);
+  }, [category, categories]);
   useEffect(() => {
     setFilter((current) =>
       current.search === (search || "")
@@ -273,12 +302,32 @@ export function Catalog({
             value={filter.search}
             onChangeText={(search) => setFilter({ ...filter, search })}
           />
-          <Field
-            label="Category"
-            placeholder="All categories"
-            value={filter.category}
-            onChangeText={(category) => setFilter({ ...filter, category })}
-          />
+          <Text style={s.heading}>Browse by category</Text>
+          <View style={s.row}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: !filter.category }}
+              style={[s.pill, !filter.category && s.active]}
+              onPress={() => setFilter((current) => ({ ...current, category: "" }))}
+            >
+              <Text style={s.text}>All</Text>
+            </Pressable>
+            {categories.map((option) => (
+              <Pressable
+                key={option.slug || option.name}
+                accessibilityRole="button"
+                accessibilityState={{ selected: option.name === filter.category }}
+                style={[s.pill, option.name === filter.category && s.active]}
+                onPress={() => setFilter(
+                  (current) => ({ ...current, category: option.name }),
+                )}
+              >
+                <Text style={s.text}>{option.name}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <ErrorBox message={categoryError} />
+          <Text style={s.heading}>Sort products</Text>
           <View style={s.row}>
             {[
               ["newest", "Newest"],

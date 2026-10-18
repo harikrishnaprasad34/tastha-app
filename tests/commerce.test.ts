@@ -14,7 +14,7 @@ import {
   filterCustomerOrders,
   orderCanBeCancelled,
 } from "../src/shared/orders";
-import { normalizeProductPage } from "../src/shared/catalogPage";
+import { normalizeProductPage, resolveCatalogCategory } from "../src/shared/catalogPage";
 import { orderTrackingStatus } from "../src/shared/orderTracking";
 import { customerLoginPayload, customerRegistrationPayload } from "../src/api/authPayload";
 import { mergeProfileUser } from "../src/api/profile";
@@ -1055,5 +1055,21 @@ describe("product details matching website related products", () => {
   it("does not fabricate recommendations for absent responses", () => {
     expect(normalizeRelatedProducts("p1", undefined)).toEqual([]);
     expect(normalizeRelatedProducts("p1", "invalid")).toEqual([]);
+  });
+});
+
+describe("category names from the website match backend filtering", () => {
+  const categories = [
+    { name: "Casual Shirts", slug: "casual-shirts" },
+    { name: "Ethnic Wear", slug: "ethnic-wear" },
+  ];
+  it("converts homepage slugs to exact product category names", () => {
+    expect(resolveCatalogCategory("casual-shirts", categories)).toBe("Casual Shirts");
+    expect(resolveCatalogCategory("ethnic wear", categories)).toBe("Ethnic Wear");
+  });
+  it("never sends arbitrary or unrecognized category expressions to product API", () => {
+    expect(resolveCatalogCategory(".*", categories)).toBe("");
+    expect(resolveCatalogCategory("unknown", categories)).toBe("");
+    expect(resolveCatalogCategory(undefined, categories)).toBe("");
   });
 });

@@ -37,3 +37,23 @@ export function normalizeProductPage(
     pagination: { ...pagination, hasNextPage },
   };
 }
+
+export interface StoreCategory {
+  name: string;
+  slug?: string;
+}
+
+/** Homepage category slugs are presentation routes; product search uses the full name. */
+export function resolveCatalogCategory(
+  requested: string | undefined,
+  categories: StoreCategory[],
+): string {
+  const key = requested?.trim().toLowerCase() || "";
+  if (!key) return "";
+  const match = categories.find((category) =>
+    typeof category.name === "string" &&
+    (category.name.toLowerCase() === key ||
+      (typeof category.slug === "string" && category.slug.toLowerCase() === key)),
+  );
+  return match?.name || "";
+}
