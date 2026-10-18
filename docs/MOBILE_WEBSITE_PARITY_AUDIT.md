@@ -27,10 +27,10 @@ Both Android and iOS should offer the same customer journeys, backend data, orde
 | `/changepassword` | Missing | Requires secure account API / reauthentication design |
 | `/profile/saved-looks` | Missing | Connect saved look routes and account-specific data |
 | `/login` | Partial | Existing password login, secure token storage; website signup/OTP/forgot-password not yet implemented |
-| `/signup`, `/otp`, `/forget-password`, `/reset-password` | Missing | Protected rate-limited auth flows and accessible form states |
+| `/signup`, `/otp`, `/forget-password`, `/reset-password` | Partial | Native signup now sends validated data to `/auth/register`, restores its issued session. OTP and secure password recovery still missing |
 | `/choose-occasion`, `/ai-recommendations`, `/perfect-look`, `/complete-look` | Missing functional native journey | Current AI screen only reports server capability; do not label as image-generation parity |
-| `/search` | Partial via catalog | Dedicated search page, suggestions, history and routing |
-| `/about`, `/contact`, `/faq`, `/offers` and policy pages | Missing | Native text content and website-consistent customer support routes |
+| `/search` | Improved, partial | Native search connects to website `/search` and `/search/suggestions`, showing real product and category results. Search filters and device UX still require validation |
+| `/about`, `/contact`, `/faq`, `/offers` and policy pages | Partial | Native FAQ, Terms, Privacy, Shipping and Returns overviews added. Full published text, About, Contact and Offers are not yet fully ported |
 | `/offline`, `/401`, `/403`, `/404`, `/500`, `/503` | Partial | Robust native offline/errors, protected navigation and recovery |
 | Admin (`/admin/*`) | Outside customer app scope | Keep administrator functionality separately authorized; do not bundle staff access into the customer app |
 
@@ -65,3 +65,13 @@ Both Android and iOS should offer the same customer journeys, backend data, orde
 - Build: Android installable APK + signed release path; iOS native Xcode build + signed TestFlight path; real devices and accessibility.
 
 **Status:** A passing CI build verifies a subset of source checks only. It does not certify full website equivalence, deployed backend readiness or native purchase success.
+
+## Additional native page implementation (2026-10-18)
+
+- Saved addresses: select for delivery, mark default with server confirmation, and remove with confirmation; editing and delivery validation remain open.
+- Tracking: authenticated native order tracking page based on saved server status, with no invented courier map, timestamps or ETA.
+- Search: real website suggestions and product/category result endpoints in a dedicated native screen.
+- Sign up: Formik/Yup account creation through existing customer registration endpoint, with secure session storage; complete legal policy pages and OTP/recovery are still pending.
+- Customer help: native short FAQ and policy overviews, not substitutes for the full website legal pages.
+
+Native screen parity and pixel-perfect rendering still require real Android/iPhone device screenshots and verification. The checkout API contract mismatch is unchanged; online payments are not proven end to end.

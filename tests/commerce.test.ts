@@ -15,7 +15,7 @@ import {
 } from "../src/shared/orders";
 import { normalizeProductPage } from "../src/shared/catalogPage";
 import { orderTrackingStatus } from "../src/shared/orderTracking";
-import { customerLoginPayload } from "../src/api/authPayload";
+import { customerLoginPayload, customerRegistrationPayload } from "../src/api/authPayload";
 import { mergeProfileUser } from "../src/api/profile";
 import { createCheckout, type Attempt } from "../src/api/checkout";
 import { mergeProducts, productImages, imageUrl } from "../src/shared/catalog";
@@ -983,5 +983,35 @@ describe("native order tracking from verified statuses", () => {
   });
   it("opens a separately protected tracking route", () => {
     expect(routeFor("TrackOrder", "order#1")).toBe("/order/order%231/tracking");
+  });
+});
+
+describe("native website-parity customer routes", () => {
+  it("validates and normalizes native customer registration before POST", () => {
+    const payload = customerRegistrationPayload({
+      fullName: "  New   Customer ",
+      email: "  CUSTOMER@EXAMPLE.COM ",
+      phone: "9876543210",
+      password: "Secure1!Pass",
+    });
+    expect(payload).toEqual({
+      fullName: "New Customer",
+      email: "customer@example.com",
+      phone: "+919876543210",
+      password: "Secure1!Pass",
+    });
+    expect(() => customerRegistrationPayload({
+      fullName: "C", email: "invalid", phone: "11111", password: "password",
+    })).toThrow();
+  });
+  it("maps each help/policy page to the native route", () => {
+    expect(routeFor("Help", "faq")).toBe("/help/faq");
+    expect(routeFor("Help", "returns")).toBe("/help/returns");
+    expect(routeFor("Help", "terms")).toBe("/help/terms");
+    expect(() => routeFor("Help", "unknown")).toThrow("valid");
+  });
+  it("opens the dedicated search and signup screens", () => {
+    expect(routeFor("Search")).toBe("/search");
+    expect(routeFor("Signup")).toBe("/signup");
   });
 });
