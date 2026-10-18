@@ -9,6 +9,7 @@ import {
   locationFromAddress,
   locationFromSearchResult,
   validPinCode,
+  publicLocationAfterSignOut,
   type SearchedPlace,
 } from "../shared/deliveryLocation";
 import { api, session } from "../api/runtime";
@@ -99,6 +100,8 @@ export function Login({ navigate }: { navigate: Navigate }) {
 }
 export function Account({ navigate }: { navigate: Navigate }) {
   const user = useAppSelector((x) => x.auth.user);
+  const delivery = useAppSelector((x) => x.location);
+  const dispatch = useAppDispatch();
   async function logout() {
     const prior = session.get();
     try {
@@ -109,12 +112,22 @@ export function Account({ navigate }: { navigate: Navigate }) {
         void fetch(API_URL + "/auth/logout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            token: prior.refreshToken,
-            userId: prior.user.id,
-          }),
+          // Revoke this device's refresh token, not every other logged-in device.
+          body: JSON.stringify({ token: prior.refreshToken }),
           signal: AbortSignal.timeout(10000),
         }).catch(() => {});
+      }
+      const publicArea = publicLocationAfterSignOut(delivery);
+      if (publicArea && delivery?.addressId) {
+        try {
+          await saveDeliveryLocation(publicArea);
+          dispatch(actions.setLocation(publicArea));
+        } catch {
+          Alert.alert(
+            "Location preference",
+            "Signed out, but your saved delivery area could not be updated.",
+          );
+        }
       }
     } catch {
       Alert.alert(

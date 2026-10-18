@@ -5,6 +5,7 @@ import {
   locationFromAddress,
   locationFromSearchResult,
   parseSavedLocation,
+  publicLocationAfterSignOut,
 } from "../src/shared/deliveryLocation";
 import { createSessionManager } from "../src/api/session";
 import { createApiClient } from "../src/api/client";
@@ -1013,5 +1014,15 @@ describe("native website-parity customer routes", () => {
   it("opens the dedicated search and signup screens", () => {
     expect(routeFor("Search")).toBe("/search");
     expect(routeFor("Signup")).toBe("/signup");
+  });
+});
+
+describe("account privacy on explicit sign-out", () => {
+  it("preserves only general delivery PIN and removes account-linked address ID", () => {
+    expect(publicLocationAfterSignOut({
+      label: "Street 12, locality", pinCode: "500034",
+      addressId: "private-address-id", lat: 17.41, lng: 78.44,
+    })).toEqual({ label: "Delivery area 500034", pinCode: "500034" });
+    expect(publicLocationAfterSignOut({ label: "Invalid", pinCode: "abc" })).toBeNull();
   });
 });

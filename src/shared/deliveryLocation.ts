@@ -158,3 +158,14 @@ export function locationFromSearchResult(
     ...(validCoordinates ? { lat, lng } : {}),
   };
 }
+
+/** Keep a general delivery area, not account-owned street and address IDs, on sign-out. */
+export function publicLocationAfterSignOut(
+  current: DeliveryLocation | null,
+): DeliveryLocation | null {
+  if (!current || !validPinCode(current.pinCode)) return null;
+  return {
+    label: "Delivery area " + current.pinCode,
+    pinCode: current.pinCode,
+  };
+}
