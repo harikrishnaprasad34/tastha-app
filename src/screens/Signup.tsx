@@ -10,7 +10,10 @@ import { Button, ErrorBox, Field, styles as s } from "../components/ui";
 
 const schema = Yup.object({
   fullName: Yup.string().trim().min(2).max(50).required("Enter your full name"),
-  email: Yup.string().trim().email("Enter a valid email").required("Email is required"),
+  email: Yup.string()
+    .trim()
+    .email("Enter a valid email")
+    .required("Email is required"),
   phone: Yup.string().required("Mobile number is required"),
   password: Yup.string()
     .min(8, "Use at least eight characters")
@@ -28,13 +31,22 @@ const schema = Yup.object({
 export function Signup({ navigate }: { navigate: Navigate }) {
   const [error, setError] = useState("");
   return (
-    <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      contentContainerStyle={s.content}
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={s.title}>Create your Tastha account</Text>
-      <Text style={s.muted}>Explore the same collections and order history on Android and iOS.</Text>
+      <Text style={s.muted}>
+        Explore the same collections and order history on Android and iOS.
+      </Text>
       <Formik
         initialValues={{
-          fullName: "", email: "", phone: "", password: "",
-          confirmPassword: "", agree: false,
+          fullName: "",
+          email: "",
+          phone: "",
+          password: "",
+          confirmPassword: "",
+          agree: false,
         }}
         validationSchema={schema}
         onSubmit={async (values) => {
@@ -47,55 +59,111 @@ export function Signup({ navigate }: { navigate: Navigate }) {
               body: customerRegistrationPayload(values),
             });
             await session.save(result, revision, true);
-            navigate("Account");
+            navigate("Authenticated");
           } catch (e) {
-            setError(e instanceof Error ? e.message : "Could not create your account.");
+            setError(
+              e instanceof Error ? e.message : "Could not create your account.",
+            );
           }
         }}
       >
-        {({ values, handleChange, handleBlur, setFieldValue,
-          handleSubmit, errors, touched, isSubmitting }) => (
+        {({
+          values,
+          handleChange,
+          handleBlur,
+          setFieldValue,
+          handleSubmit,
+          errors,
+          touched,
+          isSubmitting,
+        }) => (
           <View style={{ gap: 14 }}>
-            <Field label="Full name" value={values.fullName}
-              onChangeText={handleChange("fullName")} onBlur={handleBlur("fullName")}
-              error={touched.fullName ? errors.fullName : undefined} />
-            <Field label="Email address" value={values.email}
-              autoCapitalize="none" keyboardType="email-address"
-              onChangeText={handleChange("email")} onBlur={handleBlur("email")}
-              error={touched.email ? errors.email : undefined} />
-            <Field label="Mobile number" value={values.phone}
-              keyboardType="phone-pad" autoComplete="tel"
-              onChangeText={handleChange("phone")} onBlur={handleBlur("phone")}
-              error={touched.phone ? errors.phone : undefined} />
-            <Field label="Password" value={values.password} secureTextEntry
+            <Field
+              label="Full name"
+              value={values.fullName}
+              onChangeText={handleChange("fullName")}
+              onBlur={handleBlur("fullName")}
+              error={touched.fullName ? errors.fullName : undefined}
+            />
+            <Field
+              label="Email address"
+              value={values.email}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              onChangeText={handleChange("email")}
+              onBlur={handleBlur("email")}
+              error={touched.email ? errors.email : undefined}
+            />
+            <Field
+              label="Mobile number"
+              value={values.phone}
+              keyboardType="phone-pad"
+              autoComplete="tel"
+              onChangeText={handleChange("phone")}
+              onBlur={handleBlur("phone")}
+              error={touched.phone ? errors.phone : undefined}
+            />
+            <Field
+              label="Password"
+              value={values.password}
+              secureTextEntry
               autoComplete="new-password"
-              onChangeText={handleChange("password")} onBlur={handleBlur("password")}
-              error={touched.password ? errors.password : undefined} />
-            <Field label="Confirm password" value={values.confirmPassword} secureTextEntry
+              onChangeText={handleChange("password")}
+              onBlur={handleBlur("password")}
+              error={touched.password ? errors.password : undefined}
+            />
+            <Field
+              label="Confirm password"
+              value={values.confirmPassword}
+              secureTextEntry
               onChangeText={handleChange("confirmPassword")}
               onBlur={handleBlur("confirmPassword")}
-              error={touched.confirmPassword ? errors.confirmPassword : undefined} />
-            <Pressable accessibilityRole="checkbox"
+              error={
+                touched.confirmPassword ? errors.confirmPassword : undefined
+              }
+            />
+            <Pressable
+              accessibilityRole="checkbox"
               accessibilityState={{ checked: values.agree }}
-              style={s.row} onPress={() => { void setFieldValue("agree", !values.agree); }}>
+              style={s.row}
+              onPress={() => {
+                void setFieldValue("agree", !values.agree);
+              }}
+            >
               <Text style={s.text}>{values.agree ? "☑" : "□"}</Text>
-              <Text style={s.text}>I agree to the Tastha terms and privacy policy.</Text>
+              <Text style={s.text}>
+                I agree to the Tastha terms and privacy policy.
+              </Text>
             </Pressable>
             <View style={s.row}>
-              <Button title="View Terms" outline
-                onPress={() => navigate("Help", "terms")} />
-              <Button title="Privacy Policy" outline
-                onPress={() => navigate("Help", "privacy")} />
+              <Button
+                title="View Terms"
+                outline
+                onPress={() => navigate("Help", "terms")}
+              />
+              <Button
+                title="Privacy Policy"
+                outline
+                onPress={() => navigate("Help", "privacy")}
+              />
             </View>
-            {touched.agree && errors.agree ? <Text style={s.error}>{errors.agree}</Text> : null}
+            {touched.agree && errors.agree ? (
+              <Text style={s.error}>{errors.agree}</Text>
+            ) : null}
             <ErrorBox message={error} />
-            <Button title="Create account" busy={isSubmitting}
-              onPress={() => handleSubmit()} />
+            <Button
+              title="Create account"
+              busy={isSubmitting}
+              onPress={() => handleSubmit()}
+            />
           </View>
         )}
       </Formik>
-      <Button title="Already have an account? Sign in" outline
-        onPress={() => navigate("Login")} />
+      <Button
+        title="Already have an account? Sign in"
+        outline
+        onPress={() => navigate("Login")}
+      />
     </ScrollView>
   );
 }

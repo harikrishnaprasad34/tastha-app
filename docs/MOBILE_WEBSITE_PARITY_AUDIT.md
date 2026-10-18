@@ -1,3 +1,5 @@
+> Current-reference update: see [18 October post-login parity report](POST_LOGIN_PARITY_2026-10-18.md). This earlier report describes an older snapshot; its missing-API and homepage findings must not be applied to the newer checkout/security reference without rechecking.
+
 # Tastha Website ↔ Mobile App Customer Parity Audit
 
 Audit date: 2026-10-18  

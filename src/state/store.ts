@@ -20,6 +20,7 @@ import type {
 } from "../models";
 import { mergeProducts } from "../shared/catalog";
 import { loadStorefrontHome } from "../api/home";
+import { publicLocationAfterSignOut } from "../shared/deliveryLocation";
 import { normalizeProductPage } from "../shared/catalogPage";
 
 interface Catalog {
@@ -113,7 +114,9 @@ export const fetchCatalog = thunk(
     if (filter.search.trim()) q.set("search", filter.search.trim());
     if (filter.category) q.set("category", filter.category);
     if (filter.maxPrice) q.set("maxPrice", filter.maxPrice);
-    const response = await extra.api.request<Page>("/products?" + q, { signal });
+    const response = await extra.api.request<Page>("/products?" + q, {
+      signal,
+    });
     const result = normalizeProductPage(response, page);
     return { result, key };
   },
@@ -225,9 +228,13 @@ export const changeBag = thunk(
             : "/cart/remove-coupon";
     const body =
       arg.kind === "add"
-        ? { productId: arg.productId, quantity: 1,
-            selectedSize: arg.selectedSize, selectedColor: arg.selectedColor,
-            variantSku: arg.variantSku }
+        ? {
+            productId: arg.productId,
+            quantity: 1,
+            selectedSize: arg.selectedSize,
+            selectedColor: arg.selectedColor,
+            variantSku: arg.variantSku,
+          }
         : arg.kind === "quantity"
           ? { cartId: bag!._id, itemId: arg.itemId, quantity: arg.quantity }
           : arg.kind === "coupon"
@@ -260,10 +267,11 @@ export const changeWishlist = thunk(
 );
 export const saveAddress = thunk(
   "commerce/saveAddress",
-  async (address: AddressInput, { extra }) => {
+  async (address: AddressInput & { _id?: string }, { extra }) => {
+    const { _id, ...body } = address;
     const r = await extra.api.request<{ address: Address }>(
-      "/users/addresses",
-      { method: "POST", auth: "required", body: address },
+      "/users/addresses" + (_id ? "/" + encode(_id) : ""),
+      { method: _id ? "PUT" : "POST", auth: "required", body },
     );
     if (!r.address?._id) throw Error("Address save was not confirmed.");
     return r.address;
@@ -330,7 +338,8 @@ const catalog = createSlice({
       s.homeId = a.meta.requestId;
     });
     b.addCase(fetchHome.fulfilled, (s, a) => {
-      if (s.homeId !== a.meta.requestId || s.homePin !== a.payload.pinCode) return;
+      if (s.homeId !== a.meta.requestId || s.homePin !== a.payload.pinCode)
+        return;
       s.home = a.payload.result;
       s.homeLoading = false;
       s.homeId = null;
@@ -491,7 +500,9 @@ const commerce = createSlice({
     });
     b.addCase(saveAddress.fulfilled, (s, a) => {
       if (s.pending.mutation !== a.meta.requestId) return;
-      s.addresses.push(a.payload);
+      const index = s.addresses.findIndex((x) => x._id === a.payload._id);
+      if (index >= 0) s.addresses[index] = a.payload;
+      else s.addresses.push(a.payload);
       s.selectedAddressId = a.payload._id;
       s.busy = false;
       delete s.pending.mutation;
@@ -533,6 +544,11 @@ export function buildStore(extra: Extra) {
     const user = extra.session.get()?.user || null;
     if (identity !== (user?.id || null)) {
       store.dispatch(commerce.actions.reset());
+      const delivery = store.getState().location;
+      if ((identity && delivery) || delivery?.addressId)
+        store.dispatch(
+          location.actions.setLocation(publicLocationAfterSignOut(delivery)),
+        );
       identity = user?.id || null;
     }
     store.dispatch(auth.actions.setUser(user));

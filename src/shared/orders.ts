@@ -19,9 +19,17 @@ export function filterCustomerOrders(
       if (filter === "CANCELLED" && status !== "CANCELLED") return false;
       if (!query) return true;
       return (
-        String(order.orderNumber || "").toLowerCase().includes(query) ||
+        String(order.orderNumber || "")
+          .toLowerCase()
+          .includes(query) ||
         order.items?.some((item) =>
-          String(item.name || item.product?.name || "")
+          String(
+            item.name ||
+              (typeof item.product === "object"
+                ? item.product?.name
+                : undefined) ||
+              "",
+          )
             .toLowerCase()
             .includes(query),
         ) === true

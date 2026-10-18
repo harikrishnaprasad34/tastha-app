@@ -1,3 +1,5 @@
+> Current-reference update: see [18 October post-login parity report](POST_LOGIN_PARITY_2026-10-18.md). This earlier report describes an older snapshot; its missing-API and homepage findings must not be applied to the newer checkout/security reference without rechecking.
+
 # Tastha native app implementation and verification
 
 This report covers the independent `tastha-app` source. The existing web repository and its draft PRs are separate. No production database, backend deployment, payment configuration, webhook, or customer record was changed by this mobile work.

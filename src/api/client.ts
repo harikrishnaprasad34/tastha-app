@@ -11,6 +11,7 @@ export class ApiError extends Error {
 type Options = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
+  form?: FormData;
   signal?: AbortSignal;
   auth?: "none" | "optional" | "required";
   timeout?: number;
@@ -21,6 +22,7 @@ export function createApiClient(
   fetcher: typeof fetch = fetch,
 ) {
   let refresh: Promise<void> | undefined;
+  let refreshRevision = -1;
   async function raw(path: string, options: Options, token?: string) {
     if (!path.startsWith("/") || path.startsWith("//"))
       throw new ApiError("Invalid API path.");
@@ -35,12 +37,14 @@ export function createApiClient(
         signal: controller.signal,
         headers: {
           Accept: "application/json",
-          "Content-Type": "application/json",
+          ...(options.form ? {} : { "Content-Type": "application/json" }),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        ...(options.body === undefined
-          ? {}
-          : { body: JSON.stringify(options.body) }),
+        ...(options.form
+          ? { body: options.form }
+          : options.body === undefined
+            ? {}
+            : { body: JSON.stringify(options.body) }),
       });
       let data: Record<string, unknown>;
       try {
@@ -65,7 +69,7 @@ export function createApiClient(
     }
   }
   async function rotate(expected: number) {
-    if (refresh) return refresh;
+    if (refresh && refreshRevision === expected) return refresh;
     const old = session.get();
     if (!old) throw new ApiError("Sign in to continue.", 401);
     const pending = (async () => {
@@ -118,6 +122,7 @@ export function createApiClient(
       );
     })();
     refresh = pending;
+    refreshRevision = expected;
     try {
       await pending;
     } finally {

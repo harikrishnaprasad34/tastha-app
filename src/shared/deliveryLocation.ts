@@ -12,6 +12,8 @@ export interface NativePlace {
   formattedAddress?: string | null;
 }
 export interface ServerPlace {
+  formattedAddress?: string;
+  postalCode?: string;
   pinCode?: string;
   pincode?: string;
   postcode?: string;
@@ -40,19 +42,27 @@ export function describeDetectedPlace(
   // The backend's geocoding fallback uses a generic "Pinpoint Location"
   // label and a fixed example PIN. Never accept it as a genuine delivery PIN.
   const placeholder = /^(?:pinpoint location|selected location)/i.test(
-    trimmed(server?.displayAddress) || trimmed(server?.address),
+    trimmed(server?.displayAddress) ||
+      trimmed(server?.formattedAddress) ||
+      trimmed(server?.address),
   );
   const trustworthyServer = placeholder ? null : server;
   const serverLabel =
     trimmed(trustworthyServer?.displayAddress) ||
+    trimmed(trustworthyServer?.formattedAddress) ||
     trimmed(trustworthyServer?.address) ||
     trimmed(trustworthyServer?.city);
   const label =
     (street ? detailed : serverLabel || detailed) ||
     trimmed(native?.formattedAddress);
   const pinCode =
-    [native?.postalCode, trustworthyServer?.pinCode, trustworthyServer?.pincode, trustworthyServer?.postcode]
-      .find(validPinCode) || "";
+    [
+      native?.postalCode,
+      trustworthyServer?.pinCode,
+      trustworthyServer?.pincode,
+      trustworthyServer?.postcode,
+      trustworthyServer?.postalCode,
+    ].find(validPinCode) || "";
   return { label, pinCode };
 }
 
@@ -74,7 +84,9 @@ export function locationFromAddress(address: Address): DeliveryLocation {
   };
 }
 
-export function parseSavedLocation(raw: string | null): DeliveryLocation | null {
+export function parseSavedLocation(
+  raw: string | null,
+): DeliveryLocation | null {
   if (!raw) return null;
   try {
     const value: unknown = JSON.parse(raw);
@@ -140,18 +152,19 @@ export function locationFromSearchResult(
     trimmed(place.formattedAddress) ||
     trimmed(place.compactLocation) ||
     trimmed(place.placeName);
-  if (
-    !label ||
-    /^(?:pinpoint location|selected location)/i.test(label)
-  ) return null;
+  if (!label || /^(?:pinpoint location|selected location)/i.test(label))
+    return null;
   const pinCode =
     [place.pincode, place.postalCode, place.pinCode].find(validPinCode) || "";
   const lat = place.lat ?? place.latitude;
   const lng = place.lng ?? place.longitude;
   const validCoordinates =
-    typeof lat === "number" && Number.isFinite(lat) &&
-    typeof lng === "number" && Number.isFinite(lng) &&
-    Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+    typeof lat === "number" &&
+    Number.isFinite(lat) &&
+    typeof lng === "number" &&
+    Number.isFinite(lng) &&
+    Math.abs(lat) <= 90 &&
+    Math.abs(lng) <= 180;
   return {
     label: label.slice(0, 180),
     pinCode,
@@ -168,4 +181,20 @@ export function publicLocationAfterSignOut(
     label: "Delivery area " + current.pinCode,
     pinCode: current.pinCode,
   };
+}
+
+/** Account-owned address details may not be restored into another shopping session. */
+export function restoreDeliveryForAccount(
+  raw: string | null,
+  accountId?: string,
+): DeliveryLocation | null {
+  const location = parseSavedLocation(raw);
+  if (!location || !raw) return location;
+  const owner = JSON.parse(raw).accountId;
+  if (
+    (owner && owner !== accountId) ||
+    (location.addressId && (!owner || owner !== accountId))
+  )
+    return publicLocationAfterSignOut(location);
+  return location;
 }

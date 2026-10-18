@@ -2,11 +2,25 @@ import React, { useEffect, useRef } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Tabs, Link, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useAppSelector } from "../../state";
+import { useAppDispatch, useAppSelector } from "../../state";
+import { fetchBag, fetchWishlist } from "../../state/store";
 import { colors } from "../../config";
 import { styles as s } from "../../components/ui";
 export default function TabLayout() {
   const location = useAppSelector((x) => x.location);
+  const userId = useAppSelector((x) => x.auth.user?.id);
+  const bagCount = useAppSelector(
+    (x) =>
+      x.commerce.bag?.items.reduce((sum, line) => sum + line.quantity, 0) || 0,
+  );
+  const wishCount = useAppSelector((x) => x.commerce.wishlist.length);
+  const dispatch = useAppDispatch();
+  useEffect(() => {
+    if (userId) {
+      void dispatch(fetchBag());
+      void dispatch(fetchWishlist());
+    }
+  }, [dispatch, userId]);
   const router = useRouter();
   const prompted = useRef(false);
   useEffect(() => {
@@ -34,8 +48,11 @@ export default function TabLayout() {
           </Pressable>
         </Link>
         <Link href="/search" asChild>
-          <Pressable accessibilityRole="button" accessibilityLabel="Search products"
-            style={[s.pill, { minHeight: 44, justifyContent: "center" }]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Search products"
+            style={[s.pill, { minHeight: 44, justifyContent: "center" }]}
+          >
             <Text style={s.muted}>⌕ Search products and collections</Text>
           </Pressable>
         </Link>
@@ -70,6 +87,7 @@ export default function TabLayout() {
           name="wishlist"
           options={{
             title: "Wishlist",
+            tabBarBadge: userId && wishCount ? wishCount : undefined,
             tabBarIcon: () => <Text style={s.text}>♡</Text>,
           }}
         />
@@ -77,6 +95,7 @@ export default function TabLayout() {
           name="bag"
           options={{
             title: "Bag",
+            tabBarBadge: userId && bagCount ? bagCount : undefined,
             tabBarIcon: () => <Text style={s.text}>▢</Text>,
           }}
         />

@@ -31,7 +31,33 @@ export function createCheckout(
   openGateway: (order: GatewayOrder, method: string) => Promise<PaymentProof>,
 ) {
   let busy = false;
+  async function recover(sessionIsCurrent?: () => boolean) {
+    const attempt = await storage.read();
+    if (sessionIsCurrent?.() === false)
+      throw Error("Your shopping session changed.");
+    if (!attempt?.merchantOrderId) return null;
+    const result = await api.request<{
+      resolution: string;
+      order?: Order;
+      canRetry?: boolean;
+    }>(
+      "/payment/razorpay/order/" +
+        encodeURIComponent(attempt.merchantOrderId) +
+        "/status",
+      { auth: "required", timeout: 45000 },
+    );
+    if (sessionIsCurrent?.() === false)
+      throw Error("Your shopping session changed.");
+    if (
+      result.resolution === "CONFIRMED" &&
+      result.order?.orderNumber &&
+      result.order.paymentStatus === "COMPLETED"
+    )
+      await storage.clear();
+    return result;
+  }
   return {
+    recover,
     async pay(input: {
       accountId: string;
       cart: Cart;
@@ -66,6 +92,10 @@ export function createCheckout(
         ]);
         let attempt = await storage.read();
         active();
+        if (attempt?.merchantOrderId && attempt.fingerprint !== fingerprint)
+          throw Error(
+            "An earlier payment needs a status check. Recover that payment before starting another checkout.",
+          );
         if (attempt?.fingerprint !== fingerprint) {
           attempt = { fingerprint, idempotencyKey: uuid() };
           await storage.write(attempt);
@@ -96,8 +126,14 @@ export function createCheckout(
           await storage.clear();
           return result.order;
         }
+        let retryOrderId: string | undefined;
         if (attempt.merchantOrderId) {
-          const r = await api.request<{ resolution: string; order?: Order }>(
+          const r = await api.request<{
+            resolution: string;
+            order?: Order;
+            canRetry?: boolean;
+            razorpayOrderId?: string;
+          }>(
             "/payment/razorpay/order/" +
               encodeURIComponent(attempt.merchantOrderId) +
               "/status",
@@ -114,15 +150,35 @@ export function createCheckout(
           }
           // Never start another gateway order while an earlier attempt may
           // settle asynchronously, even if its current status is ambiguous.
-          throw Error(
-            "An earlier payment attempt exists. Check your order history or contact support before trying to pay again.",
-          );
+          if (
+            r.canRetry === true &&
+            typeof r.razorpayOrderId === "string" &&
+            r.razorpayOrderId
+          )
+            retryOrderId = r.razorpayOrderId;
+          else
+            throw Error(
+              "An earlier payment attempt exists. Check your order history or contact support before trying to pay again.",
+            );
         }
-        const order = await api.request<GatewayOrder>(
-          "/payment/razorpay/order",
-          { method: "POST", auth: "required", body: payload, timeout: 45000 },
-        );
+        const order = await api.request<
+          GatewayOrder & { alreadyPaid?: boolean; order?: Order }
+        >("/payment/razorpay/order", {
+          method: "POST",
+          auth: "required",
+          body: { ...payload, ...(retryOrderId ? { retryOrderId } : {}) },
+          timeout: 45000,
+        });
         active();
+        if (order.alreadyPaid) {
+          if (
+            !order.order?.orderNumber ||
+            order.order.paymentStatus !== "COMPLETED"
+          )
+            throw Error("Order confirmation is pending. Check your orders.");
+          await storage.clear();
+          return order.order;
+        }
         if (
           !/^rzp_(test|live)_/.test(order.keyId) ||
           !order.razorpayOrderId ||

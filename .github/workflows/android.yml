@@ -24,6 +24,7 @@ jobs:
         with:
           packages: platform-tools
       - run: npm ci
+      - run: npm run lint
       - run: npm run typecheck
       - run: npm test
       - run: npx expo prebuild --platform android --no-install
@@ -47,6 +48,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm run lint
       - run: npm run typecheck
       - run: npm test
       # Cross-platform source checks do not replace a signed Xcode build on macOS.

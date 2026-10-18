@@ -1,3 +1,4 @@
+import { ApiError } from "./client";
 import type { ApiClient } from "./client";
 import type { Discovery, Product } from "../models";
 
@@ -25,12 +26,39 @@ export async function loadStorefrontHome(
   signal?: AbortSignal,
 ): Promise<Discovery> {
   const pin = encodeURIComponent(pinCode);
+  try {
+    const home = await api.request<Discovery>(
+      "/home/discovery?deliveryPinCode=" + pin,
+      { signal },
+    );
+    if (
+      !Array.isArray(home.sections) ||
+      !Array.isArray(home.categories) ||
+      !Array.isArray(home.banners)
+    )
+      throw Error("The storefront response is incomplete. Please retry.");
+    return home;
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 404) throw error;
+  }
   const requests = [
-    api.request<BannersResponse>("/home/banners?deliveryPinCode=" + pin, { signal }),
-    api.request<CategoriesResponse>("/home/categories?deliveryPinCode=" + pin, { signal }),
-    api.request<ProductsResponse>("/home/trending?limit=6&deliveryPinCode=" + pin, { signal }),
-    api.request<ProductsResponse>("/home/new-arrivals?limit=6&deliveryPinCode=" + pin, { signal }),
-    api.request<OccasionsResponse>("/home/occasions?deliveryPinCode=" + pin, { signal }),
+    api.request<BannersResponse>("/home/banners?deliveryPinCode=" + pin, {
+      signal,
+    }),
+    api.request<CategoriesResponse>("/home/categories?deliveryPinCode=" + pin, {
+      signal,
+    }),
+    api.request<ProductsResponse>(
+      "/home/trending?limit=6&deliveryPinCode=" + pin,
+      { signal },
+    ),
+    api.request<ProductsResponse>(
+      "/home/new-arrivals?limit=6&deliveryPinCode=" + pin,
+      { signal },
+    ),
+    api.request<OccasionsResponse>("/home/occasions?deliveryPinCode=" + pin, {
+      signal,
+    }),
   ] as const;
   const results = await Promise.allSettled(requests);
   if (signal?.aborted) throw Error("Homepage request cancelled.");
@@ -38,7 +66,7 @@ export async function loadStorefrontHome(
     throw Error("Cannot load Tastha collections. Please retry.");
   const value = <T>(i: number): T | null => {
     const result = results[i];
-    return result.status === "fulfilled" ? result.value as T : null;
+    return result.status === "fulfilled" ? (result.value as T) : null;
   };
   const banners = value<BannersResponse>(0)?.banners;
   const categories = value<CategoriesResponse>(1)?.categories;

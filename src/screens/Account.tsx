@@ -1,8 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
+import { useFocusEffect } from "expo-router";
 import { ScrollView, Text, View, Alert, Pressable } from "react-native";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import * as Location from "expo-location";
+import { DeliveryMap } from "../components/DeliveryMap";
+import { readDeliveryEligibility } from "../api/deliveryEligibility";
 import { saveDeliveryLocation } from "../api/deliveryLocation";
 import {
   describeDetectedPlace,
@@ -51,7 +54,7 @@ export function Login({ navigate }: { navigate: Navigate }) {
               body: customerLoginPayload(values.identifier, values.password),
             });
             await session.save(result, revision, true);
-            navigate("Account");
+            navigate("Authenticated");
           } catch (e) {
             setError(e instanceof Error ? e.message : "Sign-in failed.");
           }
@@ -94,7 +97,21 @@ export function Login({ navigate }: { navigate: Navigate }) {
           </View>
         )}
       </Formik>
-      <Button title="Create a Tastha account" outline onPress={() => navigate("Signup")} />
+      <Button
+        title="Sign in with WhatsApp code"
+        outline
+        onPress={() => navigate("Otp")}
+      />
+      <Button
+        title="Forgot password?"
+        outline
+        onPress={() => navigate("Recovery")}
+      />
+      <Button
+        title="Create a Tastha account"
+        outline
+        onPress={() => navigate("Signup")}
+      />
     </ScrollView>
   );
 }
@@ -102,6 +119,37 @@ export function Account({ navigate }: { navigate: Navigate }) {
   const user = useAppSelector((x) => x.auth.user);
   const delivery = useAppSelector((x) => x.location);
   const dispatch = useAppDispatch();
+  const [profileError, setProfileError] = useState("");
+  const userId = user?.id;
+  useFocusEffect(
+    useCallback(() => {
+      if (!userId) return;
+      const controller = new AbortController();
+      const revision = session.revision();
+      api
+        .request<{
+          user: Partial<import("../models").User> & { _id?: string };
+        }>("/users/profile", { auth: "required", signal: controller.signal })
+        .then(async (response) => {
+          const current = session.get();
+          if (
+            !current ||
+            current.user.id !== userId ||
+            controller.signal.aborted
+          )
+            return;
+          await session.save(
+            { ...current, user: mergeProfileUser(current.user, response.user) },
+            revision,
+          );
+          if (!controller.signal.aborted) setProfileError("");
+        })
+        .catch((e) => {
+          if (!controller.signal.aborted) setProfileError(e.message);
+        });
+      return () => controller.abort();
+    }, [userId]),
+  );
   async function logout() {
     const prior = session.get();
     try {
@@ -111,7 +159,10 @@ export function Account({ navigate }: { navigate: Navigate }) {
         // The backend revokes refresh tokens from the JSON body, not the header.
         void fetch(API_URL + "/auth/logout", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${prior.accessToken}`,
+          },
           // Revoke this device's refresh token, not every other logged-in device.
           body: JSON.stringify({ token: prior.refreshToken }),
           signal: AbortSignal.timeout(10000),
@@ -138,26 +189,60 @@ export function Account({ navigate }: { navigate: Navigate }) {
   }
   return (
     <ScrollView contentContainerStyle={s.content}>
-      <Text style={s.title}>
-        {user ? `Hello, ${user.fullName}` : "Your Tastha account"}
-      </Text>
+      <Text style={s.title}>{user ? "My Account" : "Your Tastha account"}</Text>
+      <ErrorBox message={profileError} />
       {!user ? (
-        <Button title="Sign in" onPress={() => navigate("Login")} />
+        <Button title="Sign in" onPress={() => navigate("Login", "/(tabs)")} />
       ) : (
         <>
-          <Text style={s.muted}>{user.email || user.phone}</Text>
+          <View style={s.panel}>
+            <Text style={s.heading}>Hello, {user.fullName}</Text>
+            <Text style={s.muted}>{user.email || user.phone}</Text>
+            <Text style={s.muted}>
+              Manage your orders, saved addresses, preferences and security.
+            </Text>
+          </View>
           <Button
-            title="Edit profile"
+            title="My Profile"
             outline
             onPress={() => navigate("EditProfile")}
           />
-          <Button title="My orders" onPress={() => navigate("Orders")} />
+          <Button title="My Orders" onPress={() => navigate("Orders")} />
           <Button
-            title="Saved addresses"
+            title="Saved Addresses"
             outline
             onPress={() => navigate("Addresses")}
           />
-          <Button title="Sign out" outline onPress={logout} />
+          <Button
+            title="Saved AI Looks"
+            outline
+            onPress={() => navigate("SavedLooks")}
+          />
+          <Button
+            title="Security & Sign In"
+            outline
+            onPress={() => navigate("Security")}
+          />
+          <Button
+            title="Sign out"
+            outline
+            onPress={() =>
+              Alert.alert(
+                "Sign out of Tastha?",
+                "You can sign in again to access your saved shopping details.",
+                [
+                  { text: "Stay signed in", style: "cancel" },
+                  {
+                    text: "Sign out",
+                    style: "destructive",
+                    onPress: () => {
+                      void logout();
+                    },
+                  },
+                ],
+              )
+            }
+          />
         </>
       )}
       <Button
@@ -165,14 +250,22 @@ export function Account({ navigate }: { navigate: Navigate }) {
         outline
         onPress={() => navigate("Location")}
       />
-      <Button title="Help and FAQs" outline onPress={() => navigate("Help", "faq")} />
-      <Button title="Privacy policy" outline onPress={() => navigate("Help", "privacy")} />
-      <Button title="Shipping and returns" outline onPress={() => navigate("Help", "shipping")} />
       <Button
-        title="Virtual try-on availability"
+        title="Help and FAQs"
         outline
-        onPress={() => navigate("AI")}
+        onPress={() => navigate("Help", "faq")}
       />
+      <Button
+        title="Privacy policy"
+        outline
+        onPress={() => navigate("Help", "privacy")}
+      />
+      <Button
+        title="Shipping and returns"
+        outline
+        onPress={() => navigate("Help", "shipping")}
+      />
+      <Button title="Style studio" outline onPress={() => navigate("AI")} />
     </ScrollView>
   );
 }
@@ -184,7 +277,7 @@ export function EditProfile({ navigate }: { navigate: Navigate }) {
     return (
       <View style={s.content}>
         <Text style={s.muted}>Sign in to edit your Tastha profile.</Text>
-        <Button title="Sign in" onPress={() => navigate("Login")} />
+        <Button title="Sign in" onPress={() => navigate("Login", "/(tabs)")} />
       </View>
     );
   }
@@ -357,25 +450,38 @@ export function EditProfile({ navigate }: { navigate: Navigate }) {
   );
 }
 
-export function AddressForm({ navigate }: { navigate: Navigate }) {
+export function AddressForm({
+  navigate,
+  id,
+}: {
+  navigate: Navigate;
+  id?: string;
+}) {
   const dispatch = useAppDispatch();
   const user = useAppSelector((x) => x.auth.user);
+  const saved = useAppSelector((x) =>
+    x.commerce.addresses.find((a) => a._id === id),
+  );
   const [error, setError] = useState("");
+  if (id && !saved)
+    return (
+      <ErrorBox message="Open Saved Addresses and choose the address to edit." />
+    );
   return (
     <ScrollView
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={s.content}
     >
-      <Text style={s.title}>Delivery address</Text>
+      <Text style={s.title}>{id ? "Edit address" : "Delivery address"}</Text>
       <Formik
         initialValues={{
-          fullName: user?.fullName || "",
-          phone: user?.phone || "",
-          streetAddress: "",
-          apartment: "",
-          city: "",
-          state: "",
-          pinCode: "",
+          fullName: saved?.fullName || user?.fullName || "",
+          phone: saved?.phone || user?.phone || "",
+          streetAddress: saved?.streetAddress || "",
+          apartment: saved?.apartment || "",
+          city: saved?.city || "",
+          state: saved?.state || "",
+          pinCode: saved?.pinCode || "",
         }}
         validationSchema={Yup.object({
           fullName: Yup.string().trim().min(2).required(),
@@ -395,7 +501,9 @@ export function AddressForm({ navigate }: { navigate: Navigate }) {
         onSubmit={async (values) => {
           try {
             setError("");
-            const saved = await dispatch(saveAddress(values)).unwrap();
+            const saved = await dispatch(
+              saveAddress({ ...values, ...(id ? { _id: id } : {}) }),
+            ).unwrap();
             const delivery = locationFromAddress(saved);
             await saveDeliveryLocation(delivery);
             dispatch(actions.setLocation(delivery));
@@ -470,7 +578,12 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
   const [label, setLabel] = useState(selected?.label || "");
   const [coordinates, setCoordinates] = useState<
     { lat: number; lng: number; accuracy?: number } | undefined
-  >();
+  >(
+    selected?.lat !== undefined && selected.lng !== undefined
+      ? { lat: selected.lat, lng: selected.lng }
+      : undefined,
+  );
+  const lookup = useRef(0);
   const [showFields, setShowFields] = useState(Boolean(selected));
   const [accuracyNote, setAccuracyNote] = useState("");
   const [error, setError] = useState("");
@@ -522,6 +635,35 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
     };
   }, [label, searchEnabled, showFields]);
 
+  async function movePin(lat: number, lng: number) {
+    const ticket = ++lookup.current;
+    setCoordinates({ lat, lng });
+    setPin("");
+    setLabel("");
+    setError("");
+    setSearchEnabled(false);
+    setBusy(true);
+    try {
+      const response = await api.request<{
+        location: import("../shared/deliveryLocation").ServerPlace;
+      }>("/location/reverse?lat=" + lat + "&lng=" + lng, { timeout: 8000 });
+      if (ticket !== lookup.current) return;
+      const place = describeDetectedPlace(null, response.location);
+      setLabel(place.label);
+      setPin(place.pinCode);
+      if (!place.label || !place.pinCode)
+        setError("Confirm your street and PIN for this pin.");
+    } catch (e) {
+      if (ticket === lookup.current)
+        setError(
+          e instanceof Error
+            ? e.message
+            : "Address lookup failed. Enter the street and PIN.",
+        );
+    } finally {
+      if (ticket === lookup.current) setBusy(false);
+    }
+  }
   async function detect() {
     if (busy) return;
     setBusy(true);
@@ -654,11 +796,16 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
     setBusy(true);
     try {
       const next = { label: label.trim(), pinCode: pin, ...coordinates };
+      await readDeliveryEligibility(api, pin);
       await saveDeliveryLocation(next);
       dispatch(actions.setLocation(next));
       navigate("Home");
-    } catch {
-      setError("Could not save the delivery location. Please retry.");
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Could not save the delivery location. Please retry.",
+      );
     } finally {
       setBusy(false);
     }
@@ -703,6 +850,16 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
       ) : (
         <View style={s.panel}>
           <Text style={s.heading}>Confirm delivery address</Text>
+          {coordinates ? (
+            <DeliveryMap
+              lat={coordinates.lat}
+              lng={coordinates.lng}
+              disabled={busy}
+              onMove={(lat, lng) => {
+                void movePin(lat, lng);
+              }}
+            />
+          ) : null}
           {accuracyNote ? <Text style={s.muted}>{accuracyNote}</Text> : null}
           <Field
             label="Street, road or area"

@@ -35,7 +35,13 @@ export function checkoutForCurrentSession() {
         );
       const Razorpay = (await import("react-native-razorpay")).default;
       const type =
-        method === "UPI" ? "upi" : method === "CARD" ? "card" : "netbanking";
+        method === "UPI"
+          ? "upi"
+          : method === "CARD"
+            ? "card"
+            : method === "WALLET"
+              ? "wallet"
+              : "netbanking";
       const result = await Razorpay.open({
         key: order.keyId,
         order_id: order.razorpayOrderId,

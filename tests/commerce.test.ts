@@ -8,19 +8,28 @@ import {
   publicLocationAfterSignOut,
 } from "../src/shared/deliveryLocation";
 import { createSessionManager } from "../src/api/session";
-import { createApiClient } from "../src/api/client";
+import { ApiError, createApiClient } from "../src/api/client";
 import { loadStorefrontHome } from "../src/api/home";
 import {
   filterCustomerOrders,
   orderCanBeCancelled,
 } from "../src/shared/orders";
-import { normalizeProductPage, resolveCatalogCategory } from "../src/shared/catalogPage";
+import {
+  normalizeProductPage,
+  resolveCatalogCategory,
+} from "../src/shared/catalogPage";
 import { orderTrackingStatus } from "../src/shared/orderTracking";
-import { customerLoginPayload, customerRegistrationPayload } from "../src/api/authPayload";
+import {
+  customerLoginPayload,
+  customerRegistrationPayload,
+} from "../src/api/authPayload";
 import { mergeProfileUser } from "../src/api/profile";
 import { createCheckout, type Attempt } from "../src/api/checkout";
 import {
-  mergeProducts, productImages, imageUrl, normalizeRelatedProducts,
+  mergeProducts,
+  productImages,
+  imageUrl,
+  normalizeRelatedProducts,
 } from "../src/shared/catalog";
 import { getVariantAvailability } from "../src/shared/productAvailability";
 import { isValidCheckoutQuote } from "../src/shared/checkoutQuote";
@@ -172,7 +181,7 @@ describe("secure sessions and requests", () => {
     );
     expect(manager.get()).toBeNull();
   });
-  it("keeps device delivery location on login and sign-out", async () => {
+  it("keeps the delivery PIN but removes account street details on sign-out", async () => {
     const manager = createSessionManager(storage());
     const appStore = buildStore({
       api: {} as ReturnType<typeof createApiClient>,
@@ -184,7 +193,7 @@ describe("secure sessions and requests", () => {
     await manager.save(customer, manager.revision(), true);
     expect(appStore.getState().location?.label).toBe("Road 12");
     await manager.clear();
-    expect(appStore.getState().location?.label).toBe("Road 12");
+    expect(appStore.getState().location).toEqual({label:"Delivery area 500034",pinCode:"500034"});
   });
   it("rejects a staff session in the customer client", async () => {
     const manager = createSessionManager(storage());
@@ -430,6 +439,49 @@ describe("checkout security", () => {
       ),
     ).toHaveLength(1);
   });
+  it("only reopens the same provider order after an explicit safe retry response", async () => {
+    const request = vi.fn(async (path: string) =>
+      path.endsWith("/status")
+        ? { resolution: "FAILED", canRetry: true, razorpayOrderId: "order1" }
+        : path.endsWith("/verify")
+          ? { order: { orderNumber: "T1", paymentStatus: "COMPLETED" } }
+          : gatewayOrder,
+    );
+    const { checkout, gateway } = setup(request);
+    gateway.mockRejectedValueOnce(Error("closed"));
+    await expect(checkout.pay(input)).rejects.toThrow("closed");
+    await checkout.pay(input);
+    const calls = vi.mocked(request).mock.calls as unknown as [
+      string,
+      { body: Record<string, unknown> },
+    ][];
+    expect(
+      calls.filter((call) => call[0] === "/payment/razorpay/order")[1][1].body
+        .retryOrderId,
+    ).toBe("order1");
+  });
+  it("does not replace an unresolved payment identity when the bag changes", async () => {
+    const { checkout, gateway, getAttempt } = setup(
+      vi.fn(async () => gatewayOrder),
+    );
+    gateway.mockRejectedValueOnce(Error("closed"));
+    await expect(checkout.pay(input)).rejects.toThrow("closed");
+    const before = getAttempt();
+    await expect(
+      checkout.pay({ ...input, cart: { ...cart, _id: "new-cart" } }),
+    ).rejects.toThrow("earlier payment");
+    expect(getAttempt()).toEqual(before);
+  });
+  it("handles a server-reconciled paid order without reopening the gateway", async () => {
+    const { checkout, gateway } = setup(
+      vi.fn(async () => ({
+        alreadyPaid: true,
+        order: { orderNumber: "T1", paymentStatus: "COMPLETED" },
+      })),
+    );
+    expect((await checkout.pay(input)).orderNumber).toBe("T1");
+    expect(gateway).not.toHaveBeenCalled();
+  });
   it("blocks duplicate payment clicks", async () => {
     const wait = deferred<unknown>();
     const { checkout } = setup(vi.fn(() => wait.promise));
@@ -623,12 +675,14 @@ describe("homepage images and safe address recovery", () => {
 });
 
 describe("website homepage endpoint parity", () => {
-  it("loads the same CMS sections as the website without /home/discovery", async () => {
+  it("retains legacy CMS compatibility only when discovery returns 404", async () => {
     const manager = createSessionManager(storage());
     const calls: string[] = [];
     const api = {
       request: vi.fn(async (path: string) => {
         calls.push(path);
+        if (path.startsWith("/home/discovery"))
+          throw new ApiError("Not found", 404);
         if (path.startsWith("/home/banners"))
           return {
             banners: [
@@ -662,12 +716,14 @@ describe("website homepage endpoint parity", () => {
     expect(
       appStore.getState().catalog.home?.sections?.map((x) => x.id),
     ).toEqual(["trending", "new"]);
-    expect(calls).toHaveLength(5);
-    expect(calls.every((path) => !path.includes("/home/discovery"))).toBe(true);
+    expect(calls).toHaveLength(6);
+    expect(calls[0]).toBe("/home/discovery?deliveryPinCode=500034");
   });
   it("renders available sections when one CMS endpoint fails", async () => {
     const api = {
       request: vi.fn(async (path: string) => {
+        if (path.startsWith("/home/discovery"))
+          throw new ApiError("Not found", 404);
         if (path.startsWith("/home/banners")) throw Error("Banners offline");
         if (path.startsWith("/home/trending")) return { products: [product] };
         return { categories: [], products: [], occasions: [] };
@@ -683,7 +739,7 @@ describe("website homepage endpoint parity", () => {
         throw Error("Offline");
       }),
     } as unknown as ReturnType<typeof createApiClient>;
-    await expect(loadStorefrontHome(api, "")).rejects.toThrow("Cannot load");
+    await expect(loadStorefrontHome(api, "")).rejects.toThrow("Offline");
   });
   it("ignores stale homepage data when location changes during a request", async () => {
     const manager = createSessionManager(storage());
@@ -697,13 +753,17 @@ describe("website homepage endpoint parity", () => {
     const appStore = buildStore({ api, session: manager });
     const first = appStore.dispatch(fetchHome("500001"));
     const second = appStore.dispatch(fetchHome("500034"));
-    next.resolve({ products: [product] });
+    next.resolve({
+      banners: [],
+      categories: [],
+      sections: [{ id: "newest", title: "New", products: [product] }],
+    });
     await second;
-    old.resolve({ products: [] });
+    old.resolve({ banners: [], categories: [], sections: [] });
     await first;
     expect(appStore.getState().catalog.homePin).toBe("500034");
-    expect(appStore.getState().catalog.home?.sections?.length).toBe(2);
-    expect(api.request).toHaveBeenCalledTimes(10);
+    expect(appStore.getState().catalog.home?.sections?.length).toBe(1);
+    expect(api.request).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -962,7 +1022,10 @@ describe("shared Android and iOS routes", () => {
 describe("saved-address state after account changes", () => {
   it("does not retain a deleted selected address in checkout", () => {
     const manager = createSessionManager(storage());
-    const appStore = buildStore({ api: {} as ReturnType<typeof createApiClient>, session: manager });
+    const appStore = buildStore({
+      api: {} as ReturnType<typeof createApiClient>,
+      session: manager,
+    });
     appStore.dispatch(actions.selectAddress("a1"));
     appStore.dispatch(actions.removeSavedAddress("a1"));
     expect(appStore.getState().commerce.selectedAddressId).toBeNull();
@@ -973,15 +1036,21 @@ describe("native order tracking from verified statuses", () => {
   it("shows only reached stages for a shipped order", () => {
     const shipped = orderTrackingStatus({ orderStatus: "SHIPPED" });
     expect(shipped.stages.map((step) => step.reached)).toEqual([
-      true, true, true, false, false,
+      true,
+      true,
+      true,
+      false,
+      false,
     ]);
     expect(shipped.stages.find((step) => step.current)?.code).toBe("SHIPPED");
   });
   it("never fabricates progress when cancelled or unknown", () => {
     for (const orderStatus of ["CANCELLED", "UNKNOWN"]) {
-      expect(orderTrackingStatus({ orderStatus }).stages.every(
-        (step) => !step.reached,
-      )).toBe(true);
+      expect(
+        orderTrackingStatus({ orderStatus }).stages.every(
+          (step) => !step.reached,
+        ),
+      ).toBe(true);
     }
   });
   it("opens a separately protected tracking route", () => {
@@ -1003,9 +1072,14 @@ describe("native website-parity customer routes", () => {
       phone: "+919876543210",
       password: "Secure1!Pass",
     });
-    expect(() => customerRegistrationPayload({
-      fullName: "C", email: "invalid", phone: "11111", password: "password",
-    })).toThrow();
+    expect(() =>
+      customerRegistrationPayload({
+        fullName: "C",
+        email: "invalid",
+        phone: "11111",
+        password: "password",
+      }),
+    ).toThrow();
   });
   it("maps each help/policy page to the native route", () => {
     expect(routeFor("Help", "faq")).toBe("/help/faq");
@@ -1021,11 +1095,18 @@ describe("native website-parity customer routes", () => {
 
 describe("account privacy on explicit sign-out", () => {
   it("preserves only general delivery PIN and removes account-linked address ID", () => {
-    expect(publicLocationAfterSignOut({
-      label: "Street 12, locality", pinCode: "500034",
-      addressId: "private-address-id", lat: 17.41, lng: 78.44,
-    })).toEqual({ label: "Delivery area 500034", pinCode: "500034" });
-    expect(publicLocationAfterSignOut({ label: "Invalid", pinCode: "abc" })).toBeNull();
+    expect(
+      publicLocationAfterSignOut({
+        label: "Street 12, locality",
+        pinCode: "500034",
+        addressId: "private-address-id",
+        lat: 17.41,
+        lng: 78.44,
+      }),
+    ).toEqual({ label: "Delivery area 500034", pinCode: "500034" });
+    expect(
+      publicLocationAfterSignOut({ label: "Invalid", pinCode: "abc" }),
+    ).toBeNull();
   });
 });
 
@@ -1064,8 +1145,12 @@ describe("category names from the website match backend filtering", () => {
     { name: "Ethnic Wear", slug: "ethnic-wear" },
   ];
   it("converts homepage slugs to exact product category names", () => {
-    expect(resolveCatalogCategory("casual-shirts", categories)).toBe("Casual Shirts");
-    expect(resolveCatalogCategory("ethnic wear", categories)).toBe("Ethnic Wear");
+    expect(resolveCatalogCategory("casual-shirts", categories)).toBe(
+      "Casual Shirts",
+    );
+    expect(resolveCatalogCategory("ethnic wear", categories)).toBe(
+      "Ethnic Wear",
+    );
   });
   it("never sends arbitrary or unrecognized category expressions to product API", () => {
     expect(resolveCatalogCategory(".*", categories)).toBe("");

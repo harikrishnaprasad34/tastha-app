@@ -42,3 +42,9 @@ See [IMPLEMENTATION.md](docs/IMPLEMENTATION.md) for verification, limitations an
 Both platforms now use the same Expo Router screens in `src/app/`, with native stacks and persistent tabs. Profile editing, category links and order details are preserved. Account-only routes redirect to sign-in when the session is absent. A first-visit location screen allows users to detect/confirm delivery location or browse without granting permission.
 
 See [Shared mobile navigation verification](docs/SHARED_MOBILE_NAVIGATION.md) for the latest checks. The iOS workflow builds a simulator `.app` without signing; it is not an installable iPhone IPA or TestFlight release.
+
+## Current customer parity update
+
+The app now follows the current checkout/security website branch for post-login return navigation, discovery homepage and account menu. It adds OTP/recovery/security, owned saved looks, address editing, delivery checks/map integration, product reviews, review photos, invoice sharing, catalog outfit curation and payment status recovery. These are source implementations; native end-to-end and visual acceptance remain open.
+
+See [the page-by-page report](docs/POST_LOGIN_PARITY_2026-10-18.md) for exact evidence, test results and blockers, including unconfigured live delivery coverage, unavailable genuine preview inference, Android map configuration and toolchain audit findings.

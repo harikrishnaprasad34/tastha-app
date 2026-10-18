@@ -103,7 +103,7 @@ export interface Order {
   shippingAddress?: Address;
   items?: {
     name?: string;
-    product?: { _id?: string; name?: string } | null;
+    product?: string | { _id?: string; name?: string } | null;
     price?: number;
     quantity: number;
     selectedSize?: string;
@@ -112,12 +112,16 @@ export interface Order {
 }
 export interface Discovery {
   success: boolean;
+  config?: { headline?: string; description?: string; budgets?: number[] };
   banners?: {
     title?: string;
     subtitle?: string;
     image?: string;
     imageUrl?: string;
     mobileImageUrl?: string;
+    mobileImage?: string;
+    ctaText?: string;
+    eyebrow?: string;
     link?: string;
     description?: string;
     ctaLink?: string;

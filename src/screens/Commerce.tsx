@@ -1,6 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ScrollView, Text, View, Pressable, Alert } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { shareInvoice } from "../api/invoice";
 import { api, session } from "../api/runtime";
+import {
+  deliveryEligibility,
+  readDeliveryEligibility,
+} from "../api/deliveryEligibility";
 import { saveDeliveryLocation } from "../api/deliveryLocation";
 import { locationFromAddress } from "../shared/deliveryLocation";
 import {
@@ -231,7 +237,9 @@ export function Wishlist({ navigate }: { navigate: Navigate }) {
 }
 export function Addresses({ navigate }: { navigate: Navigate }) {
   const dispatch = useAppDispatch();
-  const { addresses, selectedAddressId, pending, errors } = useAppSelector((x) => x.commerce);
+  const { addresses, selectedAddressId, pending, errors } = useAppSelector(
+    (x) => x.commerce,
+  );
   const delivery = useAppSelector((x) => x.location);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -245,11 +253,14 @@ export function Addresses({ navigate }: { navigate: Navigate }) {
     setError("");
     try {
       const updated = locationFromAddress(address);
+      await readDeliveryEligibility(api, address.pinCode);
       await saveDeliveryLocation(updated);
       dispatch(actions.selectAddress(address._id));
       dispatch(actions.setLocation(updated));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not save delivery address.");
+      setError(
+        e instanceof Error ? e.message : "Could not save delivery address.",
+      );
     } finally {
       setSaving(false);
     }
@@ -259,15 +270,24 @@ export function Addresses({ navigate }: { navigate: Navigate }) {
     setSaving(true);
     setError("");
     try {
-      const response = await api.request<{ address: { _id: string; isDefault?: boolean } }>(
-        "/users/addresses/" + encodeURIComponent(address._id) + "/default",
-        { auth: "required", method: "PATCH" },
-      );
-      if (response.address?._id !== address._id || response.address.isDefault !== true)
+      const response = await api.request<{
+        address: { _id: string; isDefault?: boolean };
+      }>("/users/addresses/" + encodeURIComponent(address._id) + "/default", {
+        auth: "required",
+        method: "PATCH",
+      });
+      if (
+        response.address?._id !== address._id ||
+        response.address.isDefault !== true
+      )
         throw Error("The server did not confirm this default address.");
       dispatch(actions.markDefaultAddress(address._id));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Default address could not be updated.");
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Default address could not be updated.",
+      );
     } finally {
       setSaving(false);
     }
@@ -280,7 +300,8 @@ export function Addresses({ navigate }: { navigate: Navigate }) {
       [
         { text: "Keep", style: "cancel" },
         {
-          text: "Remove", style: "destructive",
+          text: "Remove",
+          style: "destructive",
           onPress: () => {
             void (async () => {
               setSaving(true);
@@ -295,7 +316,8 @@ export function Addresses({ navigate }: { navigate: Navigate }) {
                   const manual = {
                     label: delivery.label,
                     pinCode: delivery.pinCode,
-                    ...(typeof delivery.lat === "number" && typeof delivery.lng === "number"
+                    ...(typeof delivery.lat === "number" &&
+                    typeof delivery.lng === "number"
                       ? { lat: delivery.lat, lng: delivery.lng }
                       : {}),
                   };
@@ -304,7 +326,11 @@ export function Addresses({ navigate }: { navigate: Navigate }) {
                 }
                 await dispatch(fetchAddresses()).unwrap();
               } catch (e) {
-                setError(e instanceof Error ? e.message : "Address removed, but its selection could not be refreshed.");
+                setError(
+                  e instanceof Error
+                    ? e.message
+                    : "Address removed, but its selection could not be refreshed.",
+                );
               } finally {
                 setSaving(false);
               }
@@ -317,33 +343,69 @@ export function Addresses({ navigate }: { navigate: Navigate }) {
   return (
     <ScrollView contentContainerStyle={s.content}>
       <Text style={s.title}>Saved addresses</Text>
-      <Text style={s.muted}>Choose where to deliver, set your default address or remove old addresses.</Text>
+      <Text style={s.muted}>
+        Choose where to deliver, set your default address or remove old
+        addresses.
+      </Text>
       {pending.addresses ? <Loading /> : null}
-      <ErrorBox message={errors.addresses || error} retry={() => dispatch(fetchAddresses())} />
+      <ErrorBox
+        message={errors.addresses || error}
+        retry={() => dispatch(fetchAddresses())}
+      />
       {addresses.map((address) => (
-        <View key={address._id} style={[s.panel, address._id === selectedAddressId && s.active]}>
+        <View
+          key={address._id}
+          style={[s.panel, address._id === selectedAddressId && s.active]}
+        >
           <Text style={s.heading}>
-            {address.fullName}{address.isDefault ? " · Default" : ""}
+            {address.fullName}
+            {address.isDefault ? " · Default" : ""}
           </Text>
           <Text style={s.text}>
-            {address.streetAddress}, {address.city}, {address.state} {address.pinCode}
+            {address.streetAddress}, {address.city}, {address.state}{" "}
+            {address.pinCode}
           </Text>
           <Text style={s.muted}>{address.phone}</Text>
           <Button
-            title={address._id === selectedAddressId ? "Selected for delivery" : "Deliver here"}
+            title={
+              address._id === selectedAddressId
+                ? "Selected for delivery"
+                : "Deliver here"
+            }
             disabled={saving || address._id === selectedAddressId}
-            onPress={() => { void choose(address); }}
+            onPress={() => {
+              void choose(address);
+            }}
           />
           {!address.isDefault ? (
-            <Button title="Make default" outline disabled={saving}
-              onPress={() => { void setDefault(address); }} />
+            <Button
+              title="Make default"
+              outline
+              disabled={saving}
+              onPress={() => {
+                void setDefault(address);
+              }}
+            />
           ) : null}
-          <Button title="Remove address" outline disabled={saving}
-            onPress={() => confirmDelete(address)} />
+          <Button
+            title="Edit address"
+            outline
+            disabled={saving}
+            onPress={() => navigate("AddressForm", address._id)}
+          />
+          <Button
+            title="Remove address"
+            outline
+            disabled={saving}
+            onPress={() => confirmDelete(address)}
+          />
         </View>
       ))}
       {!pending.addresses && !errors.addresses && addresses.length === 0 ? (
-        <Empty title="No saved addresses" detail="Add an address to use it at checkout." />
+        <Empty
+          title="No saved addresses"
+          detail="Add an address to use it at checkout."
+        />
       ) : null}
       <Button title="Add an address" onPress={() => navigate("AddressForm")} />
     </ScrollView>
@@ -573,7 +635,11 @@ export function OrderDetail({
           {order.items?.map((item, index) => (
             <View key={index} style={s.panel}>
               <Text style={s.text}>
-                {item.name || item.product?.name || "Product"}
+                {item.name ||
+                  (typeof item.product === "object"
+                    ? item.product?.name
+                    : undefined) ||
+                  "Product"}
               </Text>
               <Text style={s.muted}>Quantity: {item.quantity}</Text>
               <Text style={s.muted}>
@@ -581,15 +647,54 @@ export function OrderDetail({
                   .filter(Boolean)
                   .join(" · ")}
               </Text>
+              {order.orderStatus === "DELIVERED" &&
+              (typeof item.product === "string"
+                ? item.product
+                : item.product?._id) ? (
+                <Button
+                  title="Rate and review"
+                  outline
+                  onPress={() =>
+                    navigate(
+                      "Review",
+                      new URLSearchParams({
+                        orderId: order._id,
+                        productId:
+                          typeof item.product === "string"
+                            ? item.product
+                            : item.product!._id!,
+                      }).toString(),
+                    )
+                  }
+                />
+              ) : null}
               {typeof item.price === "number" ? (
                 <Text style={s.price}>{money(item.price)}</Text>
               ) : null}
             </View>
           ))}
           <Button
+            title="Download / share invoice"
+            outline
+            busy={busy}
+            onPress={() => {
+              setBusy(true);
+              setError("");
+              void shareInvoice(order._id)
+                .catch((e) =>
+                  setError(
+                    e instanceof Error ? e.message : "Invoice unavailable.",
+                  ),
+                )
+                .finally(() => setBusy(false));
+            }}
+          />
+          <Button
             title="Track order"
             outline
-            onPress={() => navigate("TrackOrder", order._id || order.orderNumber)}
+            onPress={() =>
+              navigate("TrackOrder", order._id || order.orderNumber)
+            }
           />
           {orderCanBeCancelled(order) ? (
             <Button
@@ -610,6 +715,7 @@ export function OrderDetail({
 }
 
 export function Checkout({ navigate }: { navigate: Navigate }) {
+  const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
   const user = useAppSelector((x) => x.auth.user);
   const { bag, addresses, selectedAddressId } = useAppSelector(
@@ -660,6 +766,7 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
       api.request<{ paymentMethods: PaymentMethod[] }>("/payment/methods", {
         signal: controller.signal,
       }),
+      deliveryEligibility(api, address.pinCode),
     ])
       .then(([q, m]) => {
         if (controller.signal.aborted) return;
@@ -716,9 +823,7 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
       });
       dispatch(fetchBag());
       dispatch(fetchOrders());
-      Alert.alert("Order confirmed", order.orderNumber, [
-        { text: "View orders", onPress: () => navigate("Orders") },
-      ]);
+      navigate("PaymentStatus", order._id || order.orderNumber);
     } catch (e) {
       setError(
         e instanceof Error
@@ -733,6 +838,12 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
     <View style={s.screen}>
       <ScrollView contentContainerStyle={s.content}>
         <Text style={s.title}>Checkout</Text>
+        <Button
+          title="Check interrupted payment"
+          outline
+          disabled={paying}
+          onPress={() => navigate("PaymentStatus")}
+        />
         <Text style={s.heading}>Delivery address</Text>
         {address ? (
           <View style={s.panel}>
@@ -784,7 +895,7 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
             ))}
           </View>
         ) : null}
-        {["UPI", "CARD", "NET_BANKING", "COD"].map((code) => {
+        {["UPI", "CARD", "NET_BANKING", "WALLET", "COD"].map((code) => {
           const option = methods.find((m) => m.code === code);
           if (!option) return null;
           const available =
@@ -825,7 +936,12 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
           interrupted, check your orders before retrying.
         </Text>
       </ScrollView>
-      <View style={[s.panel, { borderRadius: 0 }]}>
+      <View
+        style={[
+          s.panel,
+          { borderRadius: 0, paddingBottom: Math.max(16, insets.bottom) },
+        ]}
+      >
         <Text style={s.price}>
           {verifiedQuote
             ? money(verifiedQuote.totalAmount)

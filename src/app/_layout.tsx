@@ -35,9 +35,18 @@ export default function Root() {
                 options={{ title: "Tastha collection" }}
               />
               <Stack.Screen name="login" options={{ title: "Sign in" }} />
-              <Stack.Screen name="signup" options={{ title: "Create account" }} />
-              <Stack.Screen name="search" options={{ title: "Search Tastha" }} />
-              <Stack.Screen name="help/[section]" options={{ title: "Help and policies" }} />
+              <Stack.Screen
+                name="signup"
+                options={{ title: "Create account" }}
+              />
+              <Stack.Screen
+                name="search"
+                options={{ title: "Search Tastha" }}
+              />
+              <Stack.Screen
+                name="help/[section]"
+                options={{ title: "Help and policies" }}
+              />
               <Stack.Screen
                 name="location"
                 options={{ title: "Delivery location" }}
@@ -55,10 +64,19 @@ export default function Root() {
                 options={{ title: "Add address" }}
               />
               <Stack.Screen name="orders" options={{ title: "My orders" }} />
-              <Stack.Screen name="order/[id]" options={{ title: "Order details" }} />
-              <Stack.Screen name="order/[id]/tracking" options={{ title: "Track order" }} />
-              <Stack.Screen name="edit-profile" options={{ title: "Edit profile" }} />
-              <Stack.Screen name="ai" options={{ title: "Virtual try-on" }} />
+              <Stack.Screen
+                name="order/[id]"
+                options={{ title: "Order details" }}
+              />
+              <Stack.Screen
+                name="order/[id]/tracking"
+                options={{ title: "Track order" }}
+              />
+              <Stack.Screen
+                name="edit-profile"
+                options={{ title: "Edit profile" }}
+              />
+              <Stack.Screen name="ai" options={{ title: "Style studio" }} />
             </Stack>
           </Bootstrap>
         </KeyboardAvoidingView>
