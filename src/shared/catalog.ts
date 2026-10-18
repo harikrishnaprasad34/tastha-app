@@ -71,3 +71,25 @@ export function checkoutFingerprint(
     total,
   ]);
 }
+
+/** Use actual related products from the product endpoint; never fabricate matches. */
+export function normalizeRelatedProducts(
+  currentProductId: string,
+  candidates: unknown,
+): Product[] {
+  if (!Array.isArray(candidates)) return [];
+  const seen = new Set<string>([currentProductId]);
+  return candidates.filter((item): item is Product => {
+    if (
+      !item ||
+      typeof item !== "object" ||
+      typeof item._id !== "string" ||
+      typeof item.name !== "string" ||
+      !Number.isFinite(item.price) ||
+      item.isDeleted === true ||
+      seen.has(item._id)
+    ) return false;
+    seen.add(item._id);
+    return true;
+  }).slice(0, 8);
+}

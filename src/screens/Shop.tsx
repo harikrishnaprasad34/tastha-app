@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   FlatList,
   Image,
+  useWindowDimensions,
   Pressable,
   ScrollView,
   Share,
@@ -18,7 +19,12 @@ import {
   changeBag,
   changeWishlist,
 } from "../state/store";
-import { productImages, imageUrl, money } from "../shared/catalog";
+import {
+  productImages,
+  imageUrl,
+  money,
+  normalizeRelatedProducts,
+} from "../shared/catalog";
 import { getVariantAvailability } from "../shared/productAvailability";
 import {
   Button,
@@ -327,10 +333,12 @@ export function ProductDetail({
   id: string;
   navigate: Navigate;
 }) {
+  const { width } = useWindowDimensions();
   const dispatch = useAppDispatch();
   const user = useAppSelector((x) => x.auth.user);
   const busy = useAppSelector((x) => x.commerce.busy);
   const [product, setProduct] = useState<Product | null>(null),
+    [related, setRelated] = useState<Product[]>([]),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [size, setSize] = useState(""),
@@ -339,17 +347,20 @@ export function ProductDetail({
   useEffect(() => {
     const controller = new AbortController();
     setProduct(null);
+    setRelated([]);
     setError("");
     setSize("");
     setColor("");
     api
-      .request<{ product: Product }>("/products/" + encodeURIComponent(id), {
+      .request<{ product: Product; relatedProducts?: Product[] }>(
+        "/products/" + encodeURIComponent(id), {
         signal: controller.signal,
       })
       .then((r) => {
         if (controller.signal.aborted) return;
         if (!r.product?._id) throw Error("Product unavailable.");
         setProduct(r.product);
+        setRelated(normalizeRelatedProducts(r.product._id, r.relatedProducts));
       })
       .catch((e) => {
         if (!controller.signal.aborted) setError(e.message);
@@ -399,14 +410,40 @@ export function ProductDetail({
           No photo is available for this selected variant.
         </Text>
       ) : null}
-      {images.map((uri) => (
-        <Image
-          key={uri}
-          source={{ uri }}
-          style={s.image}
-          accessibilityLabel={`${product.name}${color ? " — " + color : ""}`}
-        />
-      ))}
+      {images.length ? (
+        <>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            accessibilityLabel={"Images of " + product.name}
+          >
+            {images.map((uri, index) => (
+              <Image
+                key={uri}
+                source={{ uri }}
+                style={[s.image, {
+                  width: Math.max(220, Math.min(width - 40, 520)),
+                  height: 300,
+                  borderRadius: 12,
+                }]}
+                resizeMode="contain"
+                accessibilityLabel={
+                  product.name + (color ? " in " + color : "") +
+                  ", image " + (index + 1) + " of " + images.length
+                }
+              />
+            ))}
+          </ScrollView>
+          {images.length > 1 ? (
+            <Text style={s.muted}>
+              Swipe to view all {images.length} product images
+            </Text>
+          ) : null}
+        </>
+      ) : (
+        <Text style={s.muted}>Product images are unavailable.</Text>
+      )}
       <Text style={s.title}>{product.name}</Text>
       <Text style={s.price}>{money(variant?.price ?? product.price)}</Text>
       <Text style={s.muted}>{product.description}</Text>
@@ -511,6 +548,19 @@ export function ProductDetail({
       <Text style={s.muted}>
         Delivery eligibility and current stock are rechecked at checkout.
       </Text>
+      {related.length ? (
+        <View style={{ gap: 12 }}>
+          <Text style={s.heading}>You may also like</Text>
+          <Text style={s.muted}>Related products from the Tastha catalog</Text>
+          <View style={[s.row, { alignItems: "stretch" }]}>
+            {related.map((item) => (
+              <View key={item._id} style={{ width: "46%" }}>
+                <ProductCard product={item} navigate={navigate} />
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
     </ScrollView>
   );
 }

@@ -19,7 +19,9 @@ import { orderTrackingStatus } from "../src/shared/orderTracking";
 import { customerLoginPayload, customerRegistrationPayload } from "../src/api/authPayload";
 import { mergeProfileUser } from "../src/api/profile";
 import { createCheckout, type Attempt } from "../src/api/checkout";
-import { mergeProducts, productImages, imageUrl } from "../src/shared/catalog";
+import {
+  mergeProducts, productImages, imageUrl, normalizeRelatedProducts,
+} from "../src/shared/catalog";
 import { getVariantAvailability } from "../src/shared/productAvailability";
 import { isValidCheckoutQuote } from "../src/shared/checkoutQuote";
 import {
@@ -1036,5 +1038,22 @@ describe("search to catalog navigation parity", () => {
       "/(tabs)/shop?search=shirts%20%26%20pants",
     );
     expect(() => routeFor("SearchResults", " ")).toThrow("search term");
+  });
+});
+
+describe("product details matching website related products", () => {
+  it("uses genuine backend recommendations and excludes duplicates and current item", () => {
+    const entries = normalizeRelatedProducts("p1", [
+      product,
+      { ...product, _id: "p2" },
+      { ...product, _id: "p2" },
+      { ...product, _id: "p3", isDeleted: true },
+      { ...product, _id: "p4" },
+    ]);
+    expect(entries.map((item) => item._id)).toEqual(["p2", "p4"]);
+  });
+  it("does not fabricate recommendations for absent responses", () => {
+    expect(normalizeRelatedProducts("p1", undefined)).toEqual([]);
+    expect(normalizeRelatedProducts("p1", "invalid")).toEqual([]);
   });
 });

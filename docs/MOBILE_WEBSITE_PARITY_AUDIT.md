@@ -13,7 +13,7 @@ Both Android and iOS should offer the same customer journeys, backend data, orde
 | --- | --- | --- |
 | `/`, `/home` | Improved, partial | Now uses `/home/banners`, `/home/categories`, `/home/trending`, `/home/new-arrivals`, `/home/occasions`. Promo, testimonials/reviews, newsletter and website-level hero treatments remain to be integrated |
 | `/shop`, category/collection aliases, `/products` | Partial | Backend pagination normalized; add category rail imagery, recommendation sorting, rating, quick add, wishlist and visibility consistency |
-| `/product/:id` | Partial | Current product fetch and variant stock; add related products from backend response, selection-aware galleries, reviews and comparable product details |
+| `/product/:id` | Improved, partial | Swipeable selection-aware product gallery and real related products added; verified reviews, size guidance and full site layout still missing |
 | `/wishlist` | Partial | Backend wishlist and variant-selection route; add full website quick actions and product availability |
 | `/cart` | Partial | Quantity, remove, coupons; add complete summary and availability messaging and mobile-specific sticky actions |
 | `/checkout/address` | Partial | Saved addresses, add/select; separate address-review step, edit operation and delivery serviceability; set-default and confirmed delete now supported |
