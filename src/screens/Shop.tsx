@@ -9,6 +9,8 @@ import {
   Text,
   View,
 } from "react-native";
+import { SizeGuide } from "../components/SizeGuide";
+import { catalogFilterError } from "../shared/catalogFilters";
 import { StoreContact } from "../components/StoreContact";
 import { ProductReviews } from "../components/ProductReviews";
 import { api } from "../api/runtime";
@@ -360,8 +362,14 @@ export function Catalog({
     const timer = setTimeout(() => setQuery(filter), 350);
     return () => clearTimeout(timer);
   }, [filter]);
+  const filterError = catalogFilterError(filter);
   const key = JSON.stringify([query, pin]);
+  const currentResults =
+    c.key === key &&
+    JSON.stringify(filter) === JSON.stringify(query) &&
+    !filterError;
   useEffect(() => {
+    if (catalogFilterError(query)) return;
     const task = dispatch(fetchCatalog({ filter: query, page: 1, key }));
     return () => task.abort();
   }, [dispatch, key, query]);
@@ -369,7 +377,7 @@ export function Catalog({
     dispatch(fetchCatalog({ filter: query, page, key }));
   return (
     <FlatList
-      data={c.items}
+      data={currentResults ? c.items : []}
       keyExtractor={(p) => p._id}
       numColumns={2}
       contentContainerStyle={{ padding: 10, paddingBottom: 30 }}
@@ -417,6 +425,25 @@ export function Catalog({
           </View>
           <ErrorBox message={categoryError} />
           <Field
+            label="Brand"
+            value={filter.brand || ""}
+            maxLength={200}
+            onChangeText={(brand) =>
+              setFilter((current) => ({ ...current, brand }))
+            }
+          />
+          <Field
+            label="Minimum price (₹)"
+            value={filter.minPrice || ""}
+            keyboardType="number-pad"
+            onChangeText={(minPrice) =>
+              setFilter((current) => ({
+                ...current,
+                minPrice: minPrice.replace(/[^0-9]/g, ""),
+              }))
+            }
+          />
+          <Field
             label="Maximum price (₹)"
             value={filter.maxPrice}
             keyboardType="number-pad"
@@ -427,6 +454,39 @@ export function Catalog({
               }))
             }
           />
+          <ErrorBox message={filterError} />
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: Boolean(filter.offersOnly) }}
+            style={[s.pill, filter.offersOnly && s.active]}
+            onPress={() =>
+              setFilter((current) => ({
+                ...current,
+                offersOnly: !current.offersOnly,
+              }))
+            }
+          >
+            <Text style={s.text}>
+              {filter.offersOnly ? "✓ " : ""}Offers only
+            </Text>
+          </Pressable>
+          <Button
+            title="Clear all filters"
+            outline
+            onPress={() =>
+              setFilter({
+                search: "",
+                category: "",
+                sort: "newest",
+                maxPrice: "",
+              })
+            }
+          />
+          {currentResults ? (
+            <Text accessibilityLiveRegion="polite" style={s.muted}>
+              {c.total} matching products
+            </Text>
+          ) : null}
           <Text style={s.heading}>Sort products</Text>
           <View style={s.row}>
             {[
@@ -450,11 +510,11 @@ export function Catalog({
       }
       onEndReachedThreshold={0.5}
       onEndReached={() => {
-        if (!c.loading && !c.error && c.hasMore && c.page > 0 && c.key === key)
+        if (currentResults && !c.loading && !c.error && c.hasMore && c.page > 0)
           load(c.page + 1);
       }}
       ListEmptyComponent={
-        !c.loading && !c.error ? (
+        currentResults && !c.loading && !c.error ? (
           <Empty
             title="No matching products"
             detail="Try another search or category."
@@ -463,9 +523,12 @@ export function Catalog({
       }
       ListFooterComponent={
         <View>
-          {c.loading ? <Loading /> : null}
-          <ErrorBox message={c.error} retry={() => load(c.page + 1)} />
-          {!c.hasMore && c.items.length ? (
+          {c.loading || (!currentResults && !filterError) ? <Loading /> : null}
+          <ErrorBox
+            message={currentResults ? c.error : null}
+            retry={() => load(c.page + 1)}
+          />
+          {currentResults && !c.hasMore && c.items.length ? (
             <Text style={[s.muted, { textAlign: "center", padding: 20 }]}>
               You’ve seen the collection.
             </Text>
@@ -673,6 +736,7 @@ export function ProductDetail({
           </View>
         </>
       ) : null}
+      <SizeGuide key={product._id} product={product} />
       <Text accessibilityLiveRegion="polite" style={s.muted}>
         {availability.status === "available"
           ? `${availability.stock} available`

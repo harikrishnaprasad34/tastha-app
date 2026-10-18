@@ -30,6 +30,12 @@ export interface Product {
   brand?: string;
   price: number;
   originalPrice?: number;
+  sizeChart?: {
+    unit?: string;
+    measurements?: unknown[];
+    notes?: string;
+    measurementType?: string;
+  };
   stock?: number;
   images?: unknown[];
   image?: unknown;
@@ -155,6 +161,9 @@ export interface Page {
   delivery?: { serviceable?: boolean; message?: string };
 }
 export interface CatalogFilter {
+  minPrice?: string;
+  brand?: string;
+  offersOnly?: boolean;
   search: string;
   category: string;
   sort: string;

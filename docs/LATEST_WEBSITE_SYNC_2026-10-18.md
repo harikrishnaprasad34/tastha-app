@@ -25,3 +25,12 @@ Read app AGENTS.md, existing parity reports, current app implementation and curr
 ## Remaining parity work
 
 This is an incremental sync, not completion of all website features. The detailed inventory in POST_LOGIN_PARITY_2026-10-18.md remains applicable except that configured contact information and contact submission are now implemented in source. Full policies, catalog filters, guest bag merge, exact saved-look variants, complete returns/refunds, native notifications and the full styling/try-on journey remain. Authenticated device and payment tests and corresponding website/native screenshots remain required.
+
+## Additional shopping features
+
+- Added brand, minimum price, maximum price and offers-only controls using the verified productController.ts query contract. No client-side filtering of a partial catalog. Invalid price ranges do not dispatch catalog requests.
+- Added clear-all filters and server total matching count. Old products and pagination are hidden immediately when changing filters until the current request resolves.
+- Added expandable product size guides using saved `sizeChart.measurements`, restricted to that product's variant sizes, with inches/centimetres conversion and merchant notes. No generic measurements are substituted when the product has no chart. Unknown source units are not relabeled.
+- Verified against website ProductListing.tsx, ProductDetails.tsx and productPresentation.ts at `09281e5`.
+- Typecheck, lint and 107 isolated tests passed. Android/iOS Hermes exports passed, approximately 3.3 MB each. Native visual/interaction acceptance is still outstanding. No production customer writes performed.
+- Size guide is now implemented; remaining catalog parity includes route persistence for the new filters and any future server-supported size/colour/rating filters. Guest cart merge and the other previously recorded gaps remain.

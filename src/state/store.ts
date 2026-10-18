@@ -19,6 +19,7 @@ import type {
   User,
 } from "../models";
 import { mergeProducts } from "../shared/catalog";
+import { appendCatalogFilters } from "../shared/catalogFilters";
 import { loadStorefrontHome } from "../api/home";
 import { publicLocationAfterSignOut } from "../shared/deliveryLocation";
 import { normalizeProductPage } from "../shared/catalogPage";
@@ -168,7 +169,7 @@ export const fetchCatalog = thunk(
     });
     if (filter.search.trim()) q.set("search", filter.search.trim());
     if (filter.category) q.set("category", filter.category);
-    if (filter.maxPrice) q.set("maxPrice", filter.maxPrice);
+    appendCatalogFilters(q, filter);
     const response = await extra.api.request<Page>("/products?" + q, {
       signal,
     });
