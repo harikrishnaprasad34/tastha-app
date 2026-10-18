@@ -19,6 +19,7 @@ import {
   Wishlist,
   Addresses,
   Orders,
+  OrderDetail,
   Checkout,
   AIAvailability,
 } from "./src/screens/Commerce";
@@ -119,6 +120,9 @@ function Application() {
       break;
     case "Orders":
       screen = <Orders navigate={navigate} />;
+      break;
+    case "OrderDetail":
+      screen = <OrderDetail id={current.id || ""} navigate={navigate} />;
       break;
     case "Checkout":
       screen = <Checkout navigate={navigate} />;

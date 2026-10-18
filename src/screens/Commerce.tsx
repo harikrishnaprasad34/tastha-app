@@ -17,9 +17,15 @@ import {
   changeBag,
   changeWishlist,
 } from "../state/store";
-import type { Quote, PaymentMethod } from "../models";
+import type { Quote, PaymentMethod, Order } from "../models";
 import { linePayload, money } from "../shared/catalog";
 import { isValidCheckoutQuote } from "../shared/checkoutQuote";
+import {
+  filterCustomerOrders,
+  orderCanBeCancelled,
+  type OrderView,
+  type OrderSort,
+} from "../shared/orders";
 import {
   Button,
   Empty,
@@ -286,46 +292,214 @@ export function Orders({ navigate }: { navigate: Navigate }) {
   const dispatch = useAppDispatch();
   const user = useAppSelector((x) => x.auth.user);
   const { orders, pending, errors } = useAppSelector((x) => x.commerce);
+  const [query, setQuery] = useState("");
+  const [view, setView] = useState<OrderView>("ALL");
+  const [sort, setSort] = useState<OrderSort>("NEWEST");
+  const filtered = useMemo(
+    () => filterCustomerOrders(orders, query, view, sort),
+    [orders, query, view, sort],
+  );
   useEffect(() => {
     if (user) dispatch(fetchOrders());
   }, [dispatch, user?.id]);
   if (!user) return <SignIn navigate={navigate} />;
   return (
-    <ScrollView contentContainerStyle={s.content}>
-      <Text style={s.title}>Your orders</Text>
-      <Button
-        title="Refresh orders"
-        outline
-        onPress={() => dispatch(fetchOrders())}
+    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.content}>
+      <Text style={s.title}>My Orders</Text>
+      <Text style={s.muted}>Review purchases, delivery progress and payment status.</Text>
+      <Field
+        label="Search by order number or product"
+        value={query}
+        onChangeText={setQuery}
+        placeholder="Search your orders"
       />
+      <View style={s.row}>
+        {([
+          ["ALL", "All"],
+          ["ACTIVE", "Active"],
+          ["DELIVERED", "Delivered"],
+          ["CANCELLED", "Cancelled"],
+        ] as const).map(([value, label]) => (
+          <Pressable
+            key={value}
+            accessibilityRole="button"
+            accessibilityState={{ selected: view === value }}
+            onPress={() => setView(value)}
+            style={[s.pill, view === value && s.active]}
+          >
+            <Text style={s.text}>{label}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <Button
+        title={sort === "NEWEST" ? "Sort: Newest first" : "Sort: Oldest first"}
+        outline
+        onPress={() => setSort((old) => old === "NEWEST" ? "OLDEST" : "NEWEST")}
+      />
+      <Button title="Refresh orders" outline onPress={() => dispatch(fetchOrders())} />
       {pending.orders ? <Loading /> : null}
-      <ErrorBox message={errors.orders} />
-      {orders.map((o) => (
-        <View key={o._id} style={s.panel}>
-          <Text style={s.heading}>{o.orderNumber}</Text>
-          <Text style={s.text}>
-            {o.orderStatus} · {o.paymentStatus}
-          </Text>
-          <Text style={s.price}>{money(o.totalAmount)}</Text>
+      <ErrorBox message={errors.orders} retry={() => dispatch(fetchOrders())} />
+      {filtered.map((order) => (
+        <Pressable
+          key={order._id || order.orderNumber}
+          style={s.panel}
+          accessibilityRole="button"
+          accessibilityLabel={"View order " + order.orderNumber}
+          onPress={() => navigate("OrderDetail", order._id || order.orderNumber)}
+        >
+          <Text style={s.heading}>{order.orderNumber}</Text>
+          <Text style={s.text}>Order: {order.orderStatus}</Text>
+          <Text style={s.muted}>Payment: {order.paymentStatus}</Text>
+          <Text style={s.price}>{money(order.totalAmount)}</Text>
           <Text style={s.muted}>
-            {new Date(o.createdAt).toLocaleDateString("en-IN")}
+            {order.createdAt ? new Date(order.createdAt).toLocaleDateString("en-IN") : ""}
           </Text>
-          {o.items?.map((item, i) => (
-            <Text key={i} style={s.muted}>
-              {item.name || "Product"} × {item.quantity}{" "}
-              {[item.selectedSize, item.selectedColor]
-                .filter(Boolean)
-                .join(" / ")}
-            </Text>
-          ))}
-        </View>
+          <Text style={[s.text, { color: "#D4AF37" }]}>View order details →</Text>
+        </Pressable>
       ))}
-      {!pending.orders && !errors.orders && !orders.length ? (
-        <Empty title="No orders yet" />
+      {!pending.orders && !errors.orders && !filtered.length ? (
+        <Empty
+          title={orders.length ? "No matching orders" : "No orders yet"}
+          detail={orders.length ? "Try another search or filter." : "Explore Tastha collections to get started."}
+        />
       ) : null}
     </ScrollView>
   );
 }
+
+export function OrderDetail({
+  id,
+  navigate,
+}: {
+  id: string;
+  navigate: Navigate;
+}) {
+  const dispatch = useAppDispatch();
+  const user = useAppSelector((x) => x.auth.user);
+  const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    if (!id || !user) return;
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
+    api.request<{ order: Order }>("/orders/" + encodeURIComponent(id), {
+      auth: "required",
+      signal: controller.signal,
+    }).then((response) => {
+      if (!response.order?._id) throw Error("Order details are unavailable.");
+      if (!controller.signal.aborted) setOrder(response.order);
+    }).catch((reason) => {
+      if (!controller.signal.aborted) {
+        setError(reason instanceof Error ? reason.message : "Could not load order.");
+      }
+    }).finally(() => {
+      if (!controller.signal.aborted) setLoading(false);
+    });
+    return () => controller.abort();
+  }, [id, user?.id, revision]);
+
+  if (!user) return <SignIn navigate={navigate} />;
+  const cancel = () => {
+    if (!order || busy) return;
+    Alert.alert(
+      "Cancel this order?",
+      "Cancelling is final. The server will verify whether cancellation is allowed.",
+      [
+        { text: "Keep order", style: "cancel" },
+        {
+          text: "Cancel order",
+          style: "destructive",
+          onPress: async () => {
+            setBusy(true);
+            setError("");
+            try {
+              const result = await api.request<{ order: Order }>(
+                "/orders/" + encodeURIComponent(id) + "/cancel",
+                {
+                  auth: "required",
+                  method: "PUT",
+                  body: { reason: "Cancelled by customer" },
+                },
+              );
+              if (!result.order || result.order.orderStatus !== "CANCELLED")
+                throw Error("Cancellation was not confirmed. Refresh the order.");
+              setOrder(result.order);
+              dispatch(fetchOrders());
+            } catch (reason) {
+              setError(reason instanceof Error ? reason.message : "Could not cancel order.");
+            } finally {
+              setBusy(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+  return (
+    <ScrollView contentContainerStyle={s.content}>
+      <Text style={s.title}>Order details</Text>
+      <Button title="All orders" outline onPress={() => navigate("Orders")} />
+      {loading ? <Loading /> : null}
+      <ErrorBox message={error} retry={() => setRevision((old) => old + 1)} />
+      {order ? (
+        <>
+          <View style={s.panel}>
+            <Text style={s.heading}>{order.orderNumber}</Text>
+            <Text style={s.text}>Status: {order.orderStatus}</Text>
+            <Text style={s.muted}>Payment: {order.paymentStatus}</Text>
+            {order.paymentMethod ? (
+              <Text style={s.muted}>Method: {order.paymentMethod}</Text>
+            ) : null}
+            <Text style={s.price}>{money(order.totalAmount)}</Text>
+            <Text style={s.muted}>
+              {order.createdAt ? new Date(order.createdAt).toLocaleString("en-IN") : ""}
+            </Text>
+          </View>
+          {order.shippingAddress ? (
+            <View style={s.panel}>
+              <Text style={s.heading}>Delivery address</Text>
+              <Text style={s.text}>{order.shippingAddress.fullName}</Text>
+              <Text style={s.muted}>
+                {order.shippingAddress.streetAddress}, {order.shippingAddress.city},
+                {" "}{order.shippingAddress.state} {order.shippingAddress.pinCode}
+              </Text>
+            </View>
+          ) : null}
+          <Text style={s.heading}>Ordered items</Text>
+          {order.items?.map((item, index) => (
+            <View key={index} style={s.panel}>
+              <Text style={s.text}>{item.name || item.product?.name || "Product"}</Text>
+              <Text style={s.muted}>Quantity: {item.quantity}</Text>
+              <Text style={s.muted}>
+                {[item.selectedColor, item.selectedSize].filter(Boolean).join(" · ")}
+              </Text>
+              {typeof item.price === "number" ? (
+                <Text style={s.price}>{money(item.price)}</Text>
+              ) : null}
+            </View>
+          ))}
+          {orderCanBeCancelled(order) ? (
+            <Button
+              title="Request cancellation"
+              busy={busy}
+              outline
+              onPress={cancel}
+            />
+          ) : null}
+          <Text style={s.muted}>
+            Updates are supplied by Tastha's order service. Delivery times cannot be guaranteed from this screen.
+          </Text>
+        </>
+      ) : null}
+    </ScrollView>
+  );
+}
+
 export function Checkout({ navigate }: { navigate: Navigate }) {
   const dispatch = useAppDispatch();
   const user = useAppSelector((x) => x.auth.user);

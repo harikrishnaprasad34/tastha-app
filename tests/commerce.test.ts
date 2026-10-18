@@ -8,6 +8,7 @@ import {
 import { createSessionManager } from "../src/api/session";
 import { createApiClient } from "../src/api/client";
 import { loadStorefrontHome } from "../src/api/home";
+import { filterCustomerOrders, orderCanBeCancelled } from "../src/shared/orders";
 import { customerLoginPayload } from "../src/api/authPayload";
 import { createCheckout, type Attempt } from "../src/api/checkout";
 import { mergeProducts, productImages, imageUrl } from "../src/shared/catalog";
@@ -22,7 +23,7 @@ import {
   fetchHome,
   actions,
 } from "../src/state/store";
-import type { Session, Product, Cart, Quote, Address } from "../src/models";
+import type { Session, Product, Cart, Quote, Address, Order } from "../src/models";
 const customer: Session = {
   accessToken: "access",
   refreshToken: "refresh",
@@ -704,5 +705,26 @@ describe("searchable delivery location", () => {
       lat: 17,
       lng: 78,
     })?.pinCode).toBe("");
+  });
+});
+
+describe("customer orders website parity", () => {
+  const orders: Order[] = [
+    { _id: "1", orderNumber: "TA-001", orderStatus: "CONFIRMED", paymentStatus: "COMPLETED", totalAmount: 200, createdAt: "2026-01-01", items: [{ name: "Shirt", quantity: 1 }] },
+    { _id: "2", orderNumber: "TA-002", orderStatus: "DELIVERED", paymentStatus: "COMPLETED", totalAmount: 100, createdAt: "2026-02-01", items: [{ name: "Trousers", quantity: 1 }] },
+    { _id: "3", orderNumber: "TA-003", orderStatus: "CANCELLED", paymentStatus: "REFUNDED", totalAmount: 90, createdAt: "2026-03-01" },
+  ];
+  it("matches the website's order filters without mutating store data", () => {
+    const source = orders.slice();
+    expect(filterCustomerOrders(orders, "", "ACTIVE", "NEWEST").map(o => o._id)).toEqual(["1"]);
+    expect(filterCustomerOrders(orders, "", "DELIVERED", "NEWEST").map(o => o._id)).toEqual(["2"]);
+    expect(filterCustomerOrders(orders, "shirt", "ALL", "NEWEST").map(o => o._id)).toEqual(["1"]);
+    expect(filterCustomerOrders(orders, "ta-00", "ALL", "NEWEST").map(o => o._id)).toEqual(["3", "2", "1"]);
+    expect(orders).toEqual(source);
+  });
+  it("requires a confirmation step for early-status cancellation", () => {
+    expect(orderCanBeCancelled(orders[0])).toBe(true);
+    expect(orderCanBeCancelled(orders[1])).toBe(false);
+    expect(orderCanBeCancelled(orders[2])).toBe(false);
   });
 });

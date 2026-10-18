@@ -97,8 +97,12 @@ export interface Order {
   paymentStatus: string;
   totalAmount: number;
   createdAt: string;
+  paymentMethod?: string;
+  shippingAddress?: Address;
   items?: {
     name?: string;
+    product?: { _id?: string; name?: string } | null;
+    price?: number;
     quantity: number;
     selectedSize?: string;
     selectedColor?: string;
