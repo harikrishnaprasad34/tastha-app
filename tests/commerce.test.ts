@@ -326,6 +326,28 @@ describe("checkout security", () => {
     await expect(checkout.pay(input)).rejects.toThrow("pending");
     expect(getAttempt()?.merchantOrderId).toBe("merchant1");
   });
+  it("does not create a second gateway order for a failed-status older attempt", async () => {
+    const request = vi.fn(async (path: string) =>
+      path.endsWith("/status") ? { resolution: "FAILED" } : gatewayOrder,
+    );
+    const { checkout, gateway } = setup(request);
+    gateway.mockRejectedValueOnce(Error("payment UI closed"));
+    await expect(checkout.pay(input)).rejects.toThrow("payment UI closed");
+    await expect(checkout.pay(input)).rejects.toThrow("earlier payment attempt");
+    expect(request.mock.calls.filter((call) => call[0] === "/payment/razorpay/order")).toHaveLength(1);
+  });
+  it("does not trust an unfinished order marked confirmed by the status endpoint", async () => {
+    const request = vi.fn(async (path: string) =>
+      path.endsWith("/status")
+        ? { resolution: "CONFIRMED", order: { orderNumber: "T2", paymentStatus: "PENDING" } }
+        : gatewayOrder,
+    );
+    const { checkout, gateway } = setup(request);
+    gateway.mockRejectedValueOnce(Error("payment UI closed"));
+    await expect(checkout.pay(input)).rejects.toThrow("payment UI closed");
+    await expect(checkout.pay(input)).rejects.toThrow("earlier payment attempt");
+    expect(request.mock.calls.filter((call) => call[0] === "/payment/razorpay/order")).toHaveLength(1);
+  });
   it("blocks duplicate payment clicks", async () => {
     const wait = deferred<unknown>();
     const { checkout } = setup(vi.fn(() => wait.promise));
@@ -425,5 +447,26 @@ describe("checkout and saved delivery area stay synchronized", () => {
     appStore.dispatch(actions.selectAddress("a1"));
     appStore.dispatch(actions.setLocation({ label: "New locality", pinCode: "500034" }));
     expect(appStore.getState().commerce.selectedAddressId).toBeNull();
+  });
+});
+
+describe("catalog pagination protection", () => {
+  const filter = { search: "", category: "", sort: "newest", maxPrice: "" };
+  it("ignores skipped and stale catalog pages", async () => {
+    const manager = createSessionManager(storage());
+    const api = {
+      request: vi.fn(async () => ({
+        products: [product],
+        pagination: { page: 1, total: 30, hasNextPage: true },
+      })),
+    } as unknown as ReturnType<typeof createApiClient>;
+    const appStore = buildStore({ api, session: manager });
+    await appStore.dispatch(fetchCatalog({ filter, page: 2, key: "current" }));
+    expect(api.request).not.toHaveBeenCalled();
+    await appStore.dispatch(fetchCatalog({ filter, page: 1, key: "current" }));
+    expect(api.request).toHaveBeenCalledTimes(1);
+    await appStore.dispatch(fetchCatalog({ filter, page: 3, key: "current" }));
+    await appStore.dispatch(fetchCatalog({ filter, page: 2, key: "outdated" }));
+    expect(api.request).toHaveBeenCalledTimes(1);
   });
 });

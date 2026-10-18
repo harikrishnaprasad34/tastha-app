@@ -286,7 +286,12 @@ export function ProductDetail({
                 accessibilityRole="button"
                 accessibilityState={{ selected: color === v }}
                 style={[s.pill, color === v && s.active]}
-                onPress={() => setColor(v)}
+                onPress={() => {
+                  setColor(v);
+                  if (size && !product.variants?.some(
+                    (item) => item.color === v && item.size === size && item.isActive !== false,
+                  )) setSize("");
+                }}
               >
                 <Text style={s.text}>{v}</Text>
               </Pressable>
@@ -300,7 +305,12 @@ export function ProductDetail({
                 accessibilityRole="button"
                 accessibilityState={{ selected: size === v }}
                 style={[s.pill, size === v && s.active]}
-                onPress={() => setSize(v)}
+                onPress={() => {
+                  setSize(v);
+                  if (color && !product.variants?.some(
+                    (item) => item.size === v && item.color === color && item.isActive !== false,
+                  )) setColor("");
+                }}
               >
                 <Text style={s.text}>{v}</Text>
               </Pressable>

@@ -121,7 +121,17 @@ export const fetchCatalog = thunk(
   {
     condition: (arg, { getState }) => {
       const c = getState().catalog;
-      return !(c.loading && c.key === arg.key);
+      if (arg.page === 1)
+        return !(c.loading && c.key === arg.key && c.page === 0);
+      // Never append a page from an old filter or delivery location.
+      return (
+        arg.page > 1 &&
+        !c.loading &&
+        !c.error &&
+        c.key === arg.key &&
+        c.hasMore &&
+        c.page === arg.page - 1
+      );
     },
   },
 );

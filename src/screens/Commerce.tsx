@@ -322,6 +322,7 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
   );
   const address = addresses.find((a) => a._id === selectedAddressId);
   const [quote, setQuote] = useState<Quote | null>(null),
+    [quoteFor, setQuoteFor] = useState(""),
     [methods, setMethods] = useState<PaymentMethod[]>([]),
     [method, setMethod] = useState(""),
     [error, setError] = useState(""),
@@ -329,16 +330,21 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
     [paying, setPaying] = useState(false),
     [refresh, setRefresh] = useState(0);
   const coordinator = useMemo(checkoutForCurrentSession, [user?.id]);
-  const fingerprint = JSON.stringify([bag, address]);
+  const fingerprint = JSON.stringify([user?.id, bag, address]);
   useEffect(() => {
     dispatch(fetchBag());
     dispatch(fetchAddresses());
   }, [dispatch]);
   useEffect(() => {
     setQuote(null);
+    setQuoteFor("");
     setError("");
     setMethods([]);
-    if (!bag?.items.length || !address) return;
+    setMethod("");
+    if (!user || !bag?.items.length || !address) {
+      setLoading(false);
+      return;
+    }
     const controller = new AbortController();
     setLoading(true);
     Promise.all([
@@ -361,13 +367,9 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
         if (controller.signal.aborted) return;
         if (!isValidCheckoutQuote(q.quote) || !Array.isArray(m.paymentMethods))
           throw Error("Payment options or totals could not be verified.");
+        setQuoteFor(fingerprint);
         setQuote(q.quote);
         setMethods(m.paymentMethods);
-        setMethod((current) =>
-          m.paymentMethods.some((x) => x.code === current && x.enabled)
-            ? current
-            : "",
-        );
       })
       .catch((e) => {
         if (!controller.signal.aborted) setError(e.message);
@@ -377,9 +379,10 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
       });
     return () => controller.abort();
   }, [fingerprint, refresh]);
+  const verifiedQuote = quoteFor === fingerprint ? quote : null;
   if (!user) return <SignIn navigate={navigate} />;
   async function pay() {
-    if (!bag || !address || !quote || !user || paying) return;
+    if (!bag || !address || !verifiedQuote || !user || paying || loading) return;
     const chosen = methods.find((x) => x.code === method);
     if (!chosen?.enabled || (method !== "COD" && !hasNativePayments())) return;
     setPaying(true);
@@ -390,7 +393,7 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
         accountId: user.id,
         cart: bag,
         address,
-        quote,
+        quote: verifiedQuote,
         coupon: bag.appliedCoupon || "",
         method,
         sessionIsCurrent: () => session.revision() === revision,
@@ -446,14 +449,14 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
           disabled={paying || loading}
           onPress={() => setRefresh((x) => x + 1)}
         />
-        {quote ? (
+        {verifiedQuote ? (
           <View style={s.panel}>
             {[
-              ["Products", quote.subtotal],
-              ["Discount", -quote.discount],
-              ["Delivery", quote.shippingFee],
-              ["Tax", quote.tax],
-              ["Total", quote.totalAmount],
+              ["Products", verifiedQuote.quote.subtotal],
+              ["Discount", -verifiedQuote.quote.discount],
+              ["Delivery", verifiedQuote.quote.shippingFee],
+              ["Tax", verifiedQuote.quote.tax],
+              ["Total", verifiedQuote.quote.totalAmount],
             ].map(([label, value]) => (
               <View
                 key={label}
@@ -504,13 +507,13 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
       </ScrollView>
       <View style={[s.panel, { borderRadius: 0 }]}>
         <Text style={s.price}>
-          {quote ? money(quote.totalAmount) : "Awaiting verified total"}
+          {verifiedQuote ? money(verifiedQuote.totalAmount) : "Awaiting verified total"}
         </Text>
         <Button
           title={method === "COD" ? "Place COD order" : "Pay securely"}
           busy={paying}
           disabled={
-            !quote ||
+            !verifiedQuote ||
             loading ||
             !method ||
             !address ||

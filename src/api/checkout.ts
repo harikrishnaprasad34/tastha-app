@@ -104,14 +104,19 @@ export function createCheckout(
             { auth: "required", timeout: 45000 },
           );
           active();
-          if (r.resolution === "CONFIRMED" && r.order) {
+          if (
+            r.resolution === "CONFIRMED" &&
+            r.order?.orderNumber &&
+            r.order.paymentStatus === "COMPLETED"
+          ) {
             await storage.clear();
             return r.order;
           }
-          if (["AUTHORIZED", "REVIEW"].includes(r.resolution))
-            throw Error(
-              "Payment needs confirmation. Check your orders before paying again.",
-            );
+          // Never start another gateway order while an earlier attempt may
+          // settle asynchronously, even if its current status is ambiguous.
+          throw Error(
+            "An earlier payment attempt exists. Check your order history or contact support before trying to pay again.",
+          );
         }
         const order = await api.request<GatewayOrder>(
           "/payment/razorpay/order",
