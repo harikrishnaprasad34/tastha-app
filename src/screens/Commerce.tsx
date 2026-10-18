@@ -586,6 +586,11 @@ export function OrderDetail({
               ) : null}
             </View>
           ))}
+          <Button
+            title="Track order"
+            outline
+            onPress={() => navigate("TrackOrder", order._id || order.orderNumber)}
+          />
           {orderCanBeCancelled(order) ? (
             <Button
               title="Request cancellation"

@@ -15,6 +15,10 @@ const routes: Record<string, string> = {
   AI: "/ai",
 };
 export function routeFor(name: string, id?: string) {
+  if (name === "TrackOrder") {
+    if (!id) throw Error("An order identifier is required.");
+    return "/order/" + encodeURIComponent(id) + "/tracking";
+  }
   if (name === "OrderDetail") {
     if (!id) throw Error("An order identifier is required.");
     return "/order/" + encodeURIComponent(id);

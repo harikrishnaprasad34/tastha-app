@@ -14,6 +14,7 @@ import {
   orderCanBeCancelled,
 } from "../src/shared/orders";
 import { normalizeProductPage } from "../src/shared/catalogPage";
+import { orderTrackingStatus } from "../src/shared/orderTracking";
 import { customerLoginPayload } from "../src/api/authPayload";
 import { mergeProfileUser } from "../src/api/profile";
 import { createCheckout, type Attempt } from "../src/api/checkout";
@@ -962,5 +963,25 @@ describe("saved-address state after account changes", () => {
     appStore.dispatch(actions.selectAddress("a1"));
     appStore.dispatch(actions.removeSavedAddress("a1"));
     expect(appStore.getState().commerce.selectedAddressId).toBeNull();
+  });
+});
+
+describe("native order tracking from verified statuses", () => {
+  it("shows only reached stages for a shipped order", () => {
+    const shipped = orderTrackingStatus({ orderStatus: "SHIPPED" });
+    expect(shipped.stages.map((step) => step.reached)).toEqual([
+      true, true, true, false, false,
+    ]);
+    expect(shipped.stages.find((step) => step.current)?.code).toBe("SHIPPED");
+  });
+  it("never fabricates progress when cancelled or unknown", () => {
+    for (const orderStatus of ["CANCELLED", "UNKNOWN"]) {
+      expect(orderTrackingStatus({ orderStatus }).stages.every(
+        (step) => !step.reached,
+      )).toBe(true);
+    }
+  });
+  it("opens a separately protected tracking route", () => {
+    expect(routeFor("TrackOrder", "order#1")).toBe("/order/order%231/tracking");
   });
 });

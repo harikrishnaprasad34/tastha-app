@@ -16,12 +16,12 @@ Both Android and iOS should offer the same customer journeys, backend data, orde
 | `/product/:id` | Partial | Current product fetch and variant stock; add related products from backend response, selection-aware galleries, reviews and comparable product details |
 | `/wishlist` | Partial | Backend wishlist and variant-selection route; add full website quick actions and product availability |
 | `/cart` | Partial | Quantity, remove, coupons; add complete summary and availability messaging and mobile-specific sticky actions |
-| `/checkout/address` | Partial | Saved addresses, add/select; separate address-review step, default/delete operations and delivery serviceability |
+| `/checkout/address` | Partial | Saved addresses, add/select; separate address-review step, edit operation and delivery serviceability; set-default and confirmed delete now supported |
 | `/checkout/payment`, `/checkout/confirm` | **Blocked: backend contract mismatch** | See checkout contract section; do not enable unverified payment fallback |
 | `/checkout/success`, `/payment-failed` | Missing dedicated screens | Native confirmation, error/recovery and order receipt |
 | `/orders` | Improved | Search, filters and sort added; backend refresh required on focus and after order actions |
 | `/orders/:id` | Improved | Authenticated details and confirm-before-cancel added; add item photos, invoices, return flow |
-| `/track-order/:id` | Missing | Tracking stage timeline from trusted status and delivered/ETA data |
+| `/track-order/:id` | Improved, partial | Authenticated status timeline is implemented. Live carrier GPS, events and ETA are not supported by the current API |
 | `/profile` | Partial | Orders, saved addresses, login and edit link; richer menu and service settings needed |
 | `/profile/edit` | Improved | Backend-persisted name/phone/style/size; backend does not support email editing |
 | `/changepassword` | Missing | Requires secure account API / reauthentication design |

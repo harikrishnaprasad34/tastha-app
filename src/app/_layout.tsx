@@ -52,6 +52,9 @@ export default function Root() {
                 options={{ title: "Add address" }}
               />
               <Stack.Screen name="orders" options={{ title: "My orders" }} />
+              <Stack.Screen name="order/[id]" options={{ title: "Order details" }} />
+              <Stack.Screen name="order/[id]/tracking" options={{ title: "Track order" }} />
+              <Stack.Screen name="edit-profile" options={{ title: "Edit profile" }} />
               <Stack.Screen name="ai" options={{ title: "Virtual try-on" }} />
             </Stack>
           </Bootstrap>
