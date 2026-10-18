@@ -7,6 +7,7 @@ const routes: Record<string, string> = {
   EditProfile: "/edit-profile",
   OrderDetail: "/order/",
   Login: "/login",
+  Signup: "/signup",
   Addresses: "/addresses",
   AddressForm: "/address-form",
   Orders: "/orders",

@@ -93,6 +93,7 @@ export function Login({ navigate }: { navigate: Navigate }) {
           </View>
         )}
       </Formik>
+      <Button title="Create a Tastha account" outline onPress={() => navigate("Signup")} />
     </ScrollView>
   );
 }
