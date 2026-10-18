@@ -32,7 +32,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "bundle:android": "expo export --platform android",
-    "build:android": "expo prebuild --platform android --no-install"
+    "build:android": "expo prebuild --platform android --no-install",
+    "bundle:ios": "expo export --platform ios",
+    "build:ios": "expo prebuild --platform ios --no-install"
   },
   "private": true,
   "overrides": {

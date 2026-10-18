@@ -35,3 +35,20 @@ jobs:
           name: tastha-android-development-apk
           path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+
+  ios-source:
+    name: iOS bundle and native-project generation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      # Cross-platform source checks do not replace a signed Xcode build on macOS.
+      - run: EXPO_OFFLINE=1 npm run bundle:ios
+      - run: EXPO_OFFLINE=1 npm run build:ios
