@@ -1,0 +1,471 @@
+import {
+  configureStore,
+  createAsyncThunk,
+  createSlice,
+  type PayloadAction,
+} from "@reduxjs/toolkit";
+import type { ApiClient } from "../api/client";
+import type { SessionManager } from "../api/session";
+import type {
+  Address,
+  AddressInput,
+  Cart,
+  CatalogFilter,
+  DeliveryLocation,
+  Discovery,
+  Order,
+  Page,
+  Product,
+  User,
+} from "../models";
+import { mergeProducts } from "../shared/catalog";
+
+interface Catalog {
+  items: Product[];
+  key: string;
+  page: number;
+  total: number;
+  hasMore: boolean;
+  loading: boolean;
+  error: string | null;
+  requestId: string | null;
+  home: Discovery | null;
+  homeLoading: boolean;
+  homeError: string | null;
+  homeId: string | null;
+}
+interface Commerce {
+  bag: Cart | null;
+  wishlist: Product[];
+  addresses: Address[];
+  orders: Order[];
+  selectedAddressId: string | null;
+  busy: boolean;
+  pending: Record<string, string>;
+  errors: Record<string, string | null>;
+}
+export interface AppState {
+  auth: { user: User | null; ready: boolean; error: string | null };
+  catalog: Catalog;
+  commerce: Commerce;
+  location: DeliveryLocation | null;
+}
+interface Extra {
+  api: ApiClient;
+  session: SessionManager;
+}
+type Config = { state: AppState; extra: Extra };
+const thunk = createAsyncThunk.withTypes<Config>();
+const initialCatalog = (): Catalog => ({
+  items: [],
+  key: "",
+  page: 0,
+  total: 0,
+  hasMore: true,
+  loading: false,
+  error: null,
+  requestId: null,
+  home: null,
+  homeLoading: false,
+  homeError: null,
+  homeId: null,
+});
+const initialCommerce = (): Commerce => ({
+  bag: null,
+  wishlist: [],
+  addresses: [],
+  orders: [],
+  selectedAddressId: null,
+  busy: false,
+  pending: {},
+  errors: {},
+});
+const encode = encodeURIComponent;
+const cartFrom = (data: { cart?: Cart }) => {
+  if (!data.cart || !Array.isArray(data.cart.items))
+    throw Error("Tastha returned an incomplete bag. Please refresh.");
+  return data.cart;
+};
+const productsFrom = (data: { wishlist?: { products?: Product[] } }) => {
+  if (!Array.isArray(data.wishlist?.products))
+    throw Error("Wishlist is unavailable.");
+  return data.wishlist.products.filter((p) => p && typeof p._id === "string");
+};
+
+export const fetchCatalog = thunk(
+  "catalog/fetch",
+  async (
+    { filter, page, key }: { filter: CatalogFilter; page: number; key: string },
+    { extra, signal, getState },
+  ) => {
+    const pin = getState().location?.pinCode || "";
+    const q = new URLSearchParams({
+      page: String(page),
+      limit: "20",
+      includeKpis: "false",
+      sort: filter.sort,
+      deliveryPinCode: pin,
+    });
+    if (filter.search.trim()) q.set("search", filter.search.trim());
+    if (filter.category) q.set("category", filter.category);
+    if (filter.maxPrice) q.set("maxPrice", filter.maxPrice);
+    const result = await extra.api.request<Page>("/products?" + q, { signal });
+    if (
+      !Array.isArray(result.products) ||
+      typeof result.pagination?.hasNextPage !== "boolean" ||
+      result.pagination.page !== page
+    )
+      throw Error("Product paging is temporarily unavailable. Retry.");
+    return { result, key };
+  },
+  {
+    condition: (arg, { getState }) => {
+      const c = getState().catalog;
+      return !(c.loading && c.key === arg.key);
+    },
+  },
+);
+export const fetchHome = thunk(
+  "catalog/home",
+  async (_, { extra, getState, signal }) =>
+    extra.api.request<Discovery>(
+      "/home/discovery?deliveryPinCode=" +
+        encode(getState().location?.pinCode || ""),
+      { signal },
+    ),
+  { condition: (_, { getState }) => !getState().catalog.homeLoading },
+);
+export const fetchBag = thunk(
+  "commerce/bag",
+  async (_, { extra, signal }) =>
+    cartFrom(
+      await extra.api.request<{ cart: Cart }>("/cart", {
+        auth: "required",
+        signal,
+      }),
+    ),
+  { condition: (_, { getState }) => !getState().commerce.pending.bag },
+);
+export const fetchWishlist = thunk(
+  "commerce/wishlist",
+  async (_, { extra, signal }) =>
+    productsFrom(
+      await extra.api.request<{ wishlist: { products: Product[] } }>(
+        "/wishlist",
+        { auth: "required", signal },
+      ),
+    ),
+  { condition: (_, { getState }) => !getState().commerce.pending.wishlist },
+);
+export const fetchAddresses = thunk(
+  "commerce/addresses",
+  async (_, { extra, signal }) => {
+    const r = await extra.api.request<{ addresses: Address[] }>(
+      "/users/addresses",
+      { auth: "required", signal },
+    );
+    if (!Array.isArray(r.addresses)) throw Error("Addresses are unavailable.");
+    return r.addresses;
+  },
+  { condition: (_, { getState }) => !getState().commerce.pending.addresses },
+);
+export const fetchOrders = thunk(
+  "commerce/orders",
+  async (_, { extra, signal }) => {
+    const r = await extra.api.request<{ orders: Order[] }>(
+      "/orders/my-orders",
+      { auth: "required", signal },
+    );
+    if (!Array.isArray(r.orders)) throw Error("Orders are unavailable.");
+    return r.orders;
+  },
+  { condition: (_, { getState }) => !getState().commerce.pending.orders },
+);
+type BagMutation =
+  | {
+      kind: "add";
+      productId: string;
+      selectedSize?: string;
+      selectedColor?: string;
+      variantSku?: string;
+    }
+  | { kind: "quantity"; itemId: string; quantity: number }
+  | { kind: "coupon"; couponCode: string };
+export const changeBag = thunk(
+  "commerce/changeBag",
+  async (arg: BagMutation, { extra, getState }) => {
+    const bag = getState().commerce.bag;
+    const path =
+      arg.kind === "add"
+        ? "/cart/add"
+        : arg.kind === "quantity"
+          ? "/cart/update"
+          : "/cart/apply-coupon";
+    const body =
+      arg.kind === "add"
+        ? { ...arg, quantity: 1 }
+        : arg.kind === "quantity"
+          ? { cartId: bag?._id, itemId: arg.itemId, quantity: arg.quantity }
+          : { couponCode: arg.couponCode };
+    return cartFrom(
+      await extra.api.request<{ cart: Cart }>(path, {
+        method: "POST",
+        auth: "required",
+        body,
+      }),
+    );
+  },
+  { condition: (_, { getState }) => !getState().commerce.busy },
+);
+export const changeWishlist = thunk(
+  "commerce/changeWishlist",
+  async ({ id, remove }: { id: string; remove: boolean }, { extra }) =>
+    productsFrom(
+      await extra.api.request<{ wishlist: { products: Product[] } }>(
+        remove ? "/wishlist/" + encode(id) : "/wishlist/add",
+        {
+          method: remove ? "DELETE" : "POST",
+          body: remove ? undefined : { productId: id },
+          auth: "required",
+        },
+      ),
+    ),
+  { condition: (_, { getState }) => !getState().commerce.busy },
+);
+export const saveAddress = thunk(
+  "commerce/saveAddress",
+  async (address: AddressInput, { extra }) => {
+    const r = await extra.api.request<{ address: Address }>(
+      "/users/addresses",
+      { method: "POST", auth: "required", body: address },
+    );
+    if (!r.address?._id) throw Error("Address save was not confirmed.");
+    return r.address;
+  },
+  { condition: (_, { getState }) => !getState().commerce.busy },
+);
+
+const auth = createSlice({
+  name: "auth",
+  initialState: { user: null, ready: false, error: null } as AppState["auth"],
+  reducers: {
+    setUser(s, a: PayloadAction<User | null>) {
+      s.user = a.payload;
+    },
+    ready(s, a: PayloadAction<string | undefined>) {
+      s.ready = true;
+      s.error = a.payload || null;
+    },
+  },
+});
+const location = createSlice({
+  name: "location",
+  initialState: null as DeliveryLocation | null,
+  reducers: {
+    setLocation: (_, a: PayloadAction<DeliveryLocation | null>) => a.payload,
+  },
+});
+const catalog = createSlice({
+  name: "catalog",
+  initialState: initialCatalog(),
+  reducers: { reset: () => initialCatalog() },
+  extraReducers: (b) => {
+    b.addCase(fetchCatalog.pending, (s, a) => {
+      if (a.meta.arg.page === 1) {
+        s.items = [];
+        s.page = 0;
+        s.hasMore = true;
+      }
+      s.key = a.meta.arg.key;
+      s.loading = true;
+      s.error = null;
+      s.requestId = a.meta.requestId;
+    });
+    b.addCase(fetchCatalog.fulfilled, (s, a) => {
+      if (s.requestId !== a.meta.requestId) return;
+      s.items = mergeProducts(s.items, a.payload.result.products);
+      s.page = a.payload.result.pagination.page;
+      s.total = a.payload.result.pagination.total;
+      s.hasMore = a.payload.result.pagination.hasNextPage;
+      s.loading = false;
+      s.requestId = null;
+    });
+    b.addCase(fetchCatalog.rejected, (s, a) => {
+      if (s.requestId !== a.meta.requestId) return;
+      s.loading = false;
+      s.requestId = null;
+      if (!a.meta.aborted) s.error = a.error.message || "Cannot load products.";
+    });
+    b.addCase(fetchHome.pending, (s, a) => {
+      s.homeLoading = true;
+      s.homeError = null;
+      s.homeId = a.meta.requestId;
+    });
+    b.addCase(fetchHome.fulfilled, (s, a) => {
+      if (s.homeId !== a.meta.requestId) return;
+      s.home = a.payload;
+      s.homeLoading = false;
+      s.homeId = null;
+    });
+    b.addCase(fetchHome.rejected, (s, a) => {
+      if (s.homeId !== a.meta.requestId) return;
+      s.homeLoading = false;
+      s.homeId = null;
+      if (!a.meta.aborted)
+        s.homeError = a.error.message || "Homepage unavailable.";
+    });
+    b.addCase(location.actions.setLocation, () => initialCatalog());
+  },
+});
+const commerce = createSlice({
+  name: "commerce",
+  initialState: initialCommerce(),
+  reducers: {
+    reset: () => initialCommerce(),
+    selectAddress(s, a: PayloadAction<string>) {
+      s.selectedAddressId = a.payload;
+    },
+    replaceBag(s, a: PayloadAction<Cart | null>) {
+      s.bag = a.payload;
+    },
+  },
+  extraReducers: (b) => {
+    b.addCase(fetchBag.pending, (s, a) => {
+      s.pending.bag = a.meta.requestId;
+      s.errors.bag = null;
+    });
+    b.addCase(fetchBag.fulfilled, (s, a) => {
+      if (s.pending.bag !== a.meta.requestId) return;
+      s.bag = a.payload;
+      delete s.pending.bag;
+    });
+    b.addCase(fetchBag.rejected, (s, a) => {
+      if (s.pending.bag !== a.meta.requestId) return;
+      s.errors.bag = a.error.message || "Bag unavailable";
+      delete s.pending.bag;
+    });
+    b.addCase(fetchWishlist.pending, (s, a) => {
+      s.pending.wishlist = a.meta.requestId;
+      s.errors.wishlist = null;
+    });
+    b.addCase(fetchWishlist.fulfilled, (s, a) => {
+      if (s.pending.wishlist !== a.meta.requestId) return;
+      s.wishlist = a.payload;
+      delete s.pending.wishlist;
+    });
+    b.addCase(fetchWishlist.rejected, (s, a) => {
+      if (s.pending.wishlist !== a.meta.requestId) return;
+      s.errors.wishlist = a.error.message || "Wishlist unavailable";
+      delete s.pending.wishlist;
+    });
+    b.addCase(fetchAddresses.pending, (s, a) => {
+      s.pending.addresses = a.meta.requestId;
+      s.errors.addresses = null;
+    });
+    b.addCase(fetchAddresses.fulfilled, (s, a) => {
+      if (s.pending.addresses !== a.meta.requestId) return;
+      s.addresses = a.payload;
+      if (!a.payload.some((x) => x._id === s.selectedAddressId))
+        s.selectedAddressId =
+          a.payload.find((x) => x.isDefault)?._id || a.payload[0]?._id || null;
+      delete s.pending.addresses;
+    });
+    b.addCase(fetchAddresses.rejected, (s, a) => {
+      if (s.pending.addresses !== a.meta.requestId) return;
+      s.errors.addresses = a.error.message || "Addresses unavailable";
+      delete s.pending.addresses;
+    });
+    b.addCase(fetchOrders.pending, (s, a) => {
+      s.pending.orders = a.meta.requestId;
+      s.errors.orders = null;
+    });
+    b.addCase(fetchOrders.fulfilled, (s, a) => {
+      if (s.pending.orders !== a.meta.requestId) return;
+      s.orders = a.payload;
+      delete s.pending.orders;
+    });
+    b.addCase(fetchOrders.rejected, (s, a) => {
+      if (s.pending.orders !== a.meta.requestId) return;
+      s.errors.orders = a.error.message || "Orders unavailable";
+      delete s.pending.orders;
+    });
+    b.addCase(changeBag.pending, (s, a) => {
+      delete s.pending.bag;
+      s.busy = true;
+      s.pending.mutation = a.meta.requestId;
+    });
+    b.addCase(changeBag.fulfilled, (s, a) => {
+      if (s.pending.mutation !== a.meta.requestId) return;
+      s.bag = a.payload;
+      s.busy = false;
+      delete s.pending.mutation;
+    });
+    b.addCase(changeWishlist.pending, (s, a) => {
+      delete s.pending.wishlist;
+      s.busy = true;
+      s.pending.mutation = a.meta.requestId;
+    });
+    b.addCase(changeWishlist.fulfilled, (s, a) => {
+      if (s.pending.mutation !== a.meta.requestId) return;
+      s.wishlist = a.payload;
+      s.busy = false;
+      delete s.pending.mutation;
+    });
+    b.addCase(saveAddress.pending, (s, a) => {
+      delete s.pending.addresses;
+      s.busy = true;
+      s.pending.mutation = a.meta.requestId;
+    });
+    b.addCase(saveAddress.fulfilled, (s, a) => {
+      if (s.pending.mutation !== a.meta.requestId) return;
+      s.addresses.push(a.payload);
+      s.selectedAddressId = a.payload._id;
+      s.busy = false;
+      delete s.pending.mutation;
+    });
+    b.addMatcher(
+      (a) =>
+        [
+          changeBag.rejected.type,
+          changeWishlist.rejected.type,
+          saveAddress.rejected.type,
+        ].includes(a.type),
+      (s, a: { meta: { requestId: string }; error: { message?: string } }) => {
+        if (s.pending.mutation !== a.meta.requestId) return;
+        s.busy = false;
+        s.errors.mutation = a.error.message || "Unable to save";
+        delete s.pending.mutation;
+      },
+    );
+  },
+});
+export const actions = {
+  ...auth.actions,
+  ...commerce.actions,
+  setLocation: location.actions.setLocation,
+  resetCatalog: catalog.actions.reset,
+};
+export function buildStore(extra: Extra) {
+  const store = configureStore({
+    reducer: {
+      auth: auth.reducer,
+      catalog: catalog.reducer,
+      commerce: commerce.reducer,
+      location: location.reducer,
+    },
+    middleware: (g) => g({ thunk: { extraArgument: extra } }),
+  });
+  let identity = extra.session.get()?.user.id || null;
+  extra.session.subscribe(() => {
+    const user = extra.session.get()?.user || null;
+    if (identity !== (user?.id || null)) {
+      store.dispatch(commerce.actions.reset());
+      store.dispatch(location.actions.setLocation(null));
+      identity = user?.id || null;
+    }
+    store.dispatch(auth.actions.setUser(user));
+  });
+  return store;
+}
+export type AppStore = ReturnType<typeof buildStore>;
+export type AppDispatch = AppStore["dispatch"];

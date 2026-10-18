@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Tastha",
+    "slug": "tastha-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.tastha.app",
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "scheme": "tastha",
+    "backgroundColor": "#0A0B0E",
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Tastha to find your approximate delivery area. You can also enter a PIN manually."
+        }
+      ],
+      "expo-secure-store"
+    ]
+  }
+}

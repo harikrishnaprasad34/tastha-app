@@ -1,0 +1,332 @@
+import { describe, it, expect, vi } from "vitest";
+import { createSessionManager } from "../src/api/session";
+import { createApiClient } from "../src/api/client";
+import { createCheckout, type Attempt } from "../src/api/checkout";
+import { mergeProducts, productImages } from "../src/shared/catalog";
+import { getVariantAvailability } from "../src/shared/productAvailability";
+import { isValidCheckoutQuote } from "../src/shared/checkoutQuote";
+import {
+  buildStore,
+  changeBag,
+  fetchBag,
+  fetchCatalog,
+  actions,
+} from "../src/state/store";
+import type { Session, Product, Cart, Quote, Address } from "../src/models";
+const customer: Session = {
+  accessToken: "access",
+  refreshToken: "refresh",
+  user: { id: "customer1", fullName: "Customer", role: "CUSTOMER" },
+};
+const storage = () => ({
+  get: vi.fn(async () => null as string | null),
+  set: vi.fn(async (_s: string) => {}),
+  remove: vi.fn(async () => {}),
+});
+const product: Product = {
+  _id: "p1",
+  name: "Shirt",
+  price: 100,
+  variants: [
+    {
+      size: "M",
+      color: "Black",
+      stock: 2,
+      sku: "BLACK-M",
+      images: ["https://images.example/black.jpg"],
+    },
+    { size: "M", color: "Red", stock: 0, sku: "RED-M" },
+  ],
+};
+const cart: Cart = {
+  _id: "c1",
+  items: [
+    {
+      _id: "l1",
+      product,
+      quantity: 1,
+      price: 100,
+      selectedSize: "M",
+      selectedColor: "Black",
+      variantSku: "BLACK-M",
+    },
+  ],
+  totalAmount: 100,
+};
+const quote: Quote = {
+  subtotal: 100,
+  discount: 0,
+  shippingFee: 0,
+  tax: 0,
+  totalAmount: 100,
+  currency: "INR",
+};
+const address: Address = {
+  _id: "a1",
+  fullName: "Customer",
+  phone: "9999999999",
+  streetAddress: "Sample road",
+  city: "Hyderabad",
+  state: "Telangana",
+  pinCode: "500001",
+};
+function deferred<T>() {
+  let resolve!: (v: T) => void;
+  const promise = new Promise<T>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+}
+const response = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+describe("secure sessions and requests", () => {
+  it("rejects a staff session in the customer client", async () => {
+    const manager = createSessionManager(storage());
+    await expect(
+      manager.save({ ...customer, user: { ...customer.user, role: "ADMIN" } }),
+    ).rejects.toThrow("customer session");
+    expect(manager.get()).toBeNull();
+  });
+  it("cannot restore a session after logout during storage read", async () => {
+    const wait = deferred<string | null>();
+    const manager = createSessionManager({
+      ...storage(),
+      get: () => wait.promise,
+    });
+    const restore = manager.restore();
+    await manager.clear();
+    wait.resolve(JSON.stringify(customer));
+    await restore;
+    expect(manager.get()).toBeNull();
+  });
+  it("deduplicates refresh requests and retries with the new token", async () => {
+    const manager = createSessionManager(storage());
+    await manager.save(customer);
+    let refreshes = 0;
+    const fetcher = vi.fn(
+      async (url: RequestInfo | URL, options?: RequestInit) => {
+        if (String(url).endsWith("/auth/refresh-token")) {
+          refreshes++;
+          return response({ accessToken: "new", refreshToken: "new-refresh" });
+        }
+        const headers = options?.headers as Record<string, string>;
+        return headers.Authorization === "Bearer new"
+          ? response({ success: true })
+          : response({ message: "Expired" }, 401);
+      },
+    );
+    const api = createApiClient("https://example.test", manager, fetcher);
+    await Promise.all([
+      api.request("/cart", { auth: "required" }),
+      api.request("/wishlist", { auth: "required" }),
+    ]);
+    expect(refreshes).toBe(1);
+    expect(manager.get()?.accessToken).toBe("new");
+  });
+  it("rejects an authenticated response arriving after logout", async () => {
+    const manager = createSessionManager(storage());
+    await manager.save(customer);
+    const wait = deferred<Response>();
+    const api = createApiClient(
+      "https://example.test",
+      manager,
+      () => wait.promise,
+    );
+    const request = api.request("/cart", { auth: "required" });
+    await manager.clear();
+    wait.resolve(response({ success: true }));
+    await expect(request).rejects.toThrow("session changed");
+  });
+  it("does not retry a network-failed mutation", async () => {
+    const manager = createSessionManager(storage());
+    await manager.save(customer);
+    const fetcher = vi.fn(async () => {
+      throw Error("offline");
+    });
+    await expect(
+      createApiClient("https://example.test", manager, fetcher).request(
+        "/orders/create",
+        { auth: "required", method: "POST" },
+      ),
+    ).rejects.toThrow("Cannot reach");
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+});
+describe("catalog and quote integrity", () => {
+  it("merges pages without duplicate products", () =>
+    expect(
+      mergeProducts(
+        [product],
+        [
+          { ...product, name: "Updated" },
+          { ...product, _id: "p2" },
+        ],
+      ).map((p) => p.name),
+    ).toEqual(["Updated", "Shirt"]));
+  it("uses the selected variant image", () =>
+    expect(
+      productImages(
+        { ...product, images: ["https://images.example/red.jpg"] },
+        "https://api.example",
+        product.variants![0],
+      ),
+    ).toEqual(["https://images.example/black.jpg"]));
+  it("requires exact size and colour and checks selected stock", () => {
+    expect(getVariantAvailability(product).status).toBe("selection_required");
+    expect(
+      getVariantAvailability(product, { size: "M", color: "Black" }).status,
+    ).toBe("available");
+    expect(
+      getVariantAvailability(product, { size: "M", color: "Red" }).status,
+    ).toBe("out_of_stock");
+  });
+  it("rejects inconsistent and non-finite totals", () => {
+    expect(isValidCheckoutQuote(quote)).toBe(true);
+    expect(isValidCheckoutQuote({ ...quote, totalAmount: 101 })).toBe(false);
+    expect(isValidCheckoutQuote({ ...quote, tax: NaN })).toBe(false);
+  });
+  it("ignores a stale bag load after a confirmed mutation", async () => {
+    const manager = createSessionManager(storage());
+    await manager.save(customer);
+    const wait = deferred<{ cart: Cart }>();
+    const api = {
+      request: vi.fn((path: string) =>
+        path === "/cart"
+          ? wait.promise
+          : Promise.resolve({ cart: { ...cart, totalAmount: 200 } }),
+      ),
+    } as unknown as ReturnType<typeof createApiClient>;
+    const store = buildStore({ api, session: manager });
+    const load = store.dispatch(fetchBag());
+    await store.dispatch(changeBag({ kind: "add", productId: "p1" }));
+    wait.resolve({ cart });
+    await load;
+    expect(store.getState().commerce.bag?.totalAmount).toBe(200);
+  });
+  it("resets catalog pages immediately on location change", () => {
+    const store = buildStore({
+      api: {} as ReturnType<typeof createApiClient>,
+      session: createSessionManager(storage()),
+    });
+    store.dispatch(
+      fetchCatalog.fulfilled(
+        {
+          result: {
+            success: true,
+            products: [product],
+            pagination: { page: 1, total: 1, hasNextPage: false },
+          },
+          key: "old",
+        },
+        "old",
+        {
+          filter: { search: "", category: "", sort: "newest", maxPrice: "" },
+          page: 1,
+          key: "old",
+        },
+      ),
+    );
+    store.dispatch(actions.setLocation({ label: "Area", pinCode: "500001" }));
+    expect(store.getState().catalog.page).toBe(0);
+    expect(store.getState().catalog.items).toEqual([]);
+  });
+});
+describe("checkout security", () => {
+  function setup(request: ReturnType<typeof vi.fn>) {
+    let attempt: Attempt | null = null;
+    const gateway = vi.fn(async () => ({
+      razorpay_order_id: "order1",
+      razorpay_payment_id: "payment1",
+      razorpay_signature: "proof",
+    }));
+    const checkout = createCheckout(
+      { request } as unknown as ReturnType<typeof createApiClient>,
+      {
+        read: async () => attempt,
+        write: async (a) => {
+          attempt = a;
+        },
+        clear: async () => {
+          attempt = null;
+        },
+      },
+      () => "stable-attempt",
+      gateway,
+    );
+    return { checkout, gateway, getAttempt: () => attempt };
+  }
+  const input = {
+    accountId: "customer1",
+    cart,
+    address,
+    quote,
+    coupon: "",
+    method: "UPI",
+  };
+  const gatewayOrder = {
+    razorpayOrderId: "order1",
+    merchantOrderId: "merchant1",
+    keyId: "rzp_test_public",
+    amountInPaise: 10000,
+    currency: "INR",
+  };
+  it("refuses a gateway amount mismatch before opening the SDK", async () => {
+    const { checkout, gateway } = setup(
+      vi.fn(async () => ({ ...gatewayOrder, amountInPaise: 1 })),
+    );
+    await expect(checkout.pay(input)).rejects.toThrow("amount");
+    expect(gateway).not.toHaveBeenCalled();
+  });
+  it("never treats an unverified payment as paid", async () => {
+    const request = vi.fn(async (path: string) =>
+      path.endsWith("/verify")
+        ? { order: { orderNumber: "T1", paymentStatus: "PENDING" } }
+        : gatewayOrder,
+    );
+    const { checkout, getAttempt } = setup(request);
+    await expect(checkout.pay(input)).rejects.toThrow("pending");
+    expect(getAttempt()?.merchantOrderId).toBe("merchant1");
+  });
+  it("blocks duplicate payment clicks", async () => {
+    const wait = deferred<unknown>();
+    const { checkout } = setup(vi.fn(() => wait.promise));
+    const first = checkout.pay(input);
+    await expect(checkout.pay(input)).rejects.toThrow("already processing");
+    wait.resolve({ ...gatewayOrder, amountInPaise: 1 });
+    await expect(first).rejects.toThrow("amount");
+  });
+  it("reuses the persisted attempt after an interrupted COD request", async () => {
+    const request = vi
+      .fn()
+      .mockRejectedValueOnce(Error("offline"))
+      .mockResolvedValueOnce({ order: { orderNumber: "T1" } });
+    const { checkout } = setup(request);
+    await expect(checkout.pay({ ...input, method: "COD" })).rejects.toThrow(
+      "offline",
+    );
+    await checkout.pay({ ...input, method: "COD" });
+    expect(request.mock.calls[0][1].body.idempotencyKey).toBe(
+      request.mock.calls[1][1].body.idempotencyKey,
+    );
+  });
+  it("does not open the SDK when the session changed", async () => {
+    const { checkout, gateway } = setup(vi.fn(async () => gatewayOrder));
+    await expect(
+      checkout.pay({ ...input, sessionIsCurrent: () => false }),
+    ).rejects.toThrow("session changed");
+    expect(gateway).not.toHaveBeenCalled();
+  });
+});
+
+it("never substitutes another colour when the selected variant has no photo", () => {
+  expect(
+    productImages(
+      { ...product, images: ["https://example.test/red.jpg"] },
+      "https://example.test",
+      product.variants![1],
+    ),
+  ).toEqual([]);
+});

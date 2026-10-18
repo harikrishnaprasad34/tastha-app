@@ -1,0 +1,358 @@
+import React, { useEffect, useState } from "react";
+import {
+  FlatList,
+  Image,
+  Pressable,
+  ScrollView,
+  Share,
+  Text,
+  View,
+} from "react-native";
+import { api } from "../api/runtime";
+import { API_ORIGIN } from "../config";
+import type { Product, CatalogFilter } from "../models";
+import { useAppDispatch, useAppSelector } from "../state";
+import {
+  fetchCatalog,
+  fetchHome,
+  changeBag,
+  changeWishlist,
+} from "../state/store";
+import { productImages, money } from "../shared/catalog";
+import { getVariantAvailability } from "../shared/productAvailability";
+import {
+  Button,
+  Empty,
+  ErrorBox,
+  Field,
+  Loading,
+  styles as s,
+} from "../components/ui";
+export type Navigate = (route: string, id?: string) => void;
+export function ProductCard({
+  product,
+  navigate,
+}: {
+  product: Product;
+  navigate: Navigate;
+}) {
+  const image = productImages(product, API_ORIGIN)[0];
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={"View " + product.name}
+      onPress={() => navigate("Product", product._id)}
+      style={[s.panel, { flex: 1, margin: 5 }]}
+    >
+      {image ? (
+        <Image
+          source={{ uri: image }}
+          accessibilityLabel={product.name}
+          style={[s.image, { height: 180 }]}
+        />
+      ) : (
+        <Text style={s.muted}>Image unavailable</Text>
+      )}
+      <Text style={s.text}>{product.name}</Text>
+      <Text style={s.price}>{money(product.price)}</Text>
+    </Pressable>
+  );
+}
+export function Home({ navigate }: { navigate: Navigate }) {
+  const dispatch = useAppDispatch();
+  const { home, homeLoading, homeError } = useAppSelector((x) => x.catalog);
+  const pin = useAppSelector((x) => x.location?.pinCode);
+  useEffect(() => {
+    const job = dispatch(fetchHome());
+    return () => job.abort();
+  }, [dispatch, pin]);
+  return (
+    <ScrollView contentContainerStyle={s.content}>
+      <Text style={s.muted}>THE TASTHA EDIT</Text>
+      <Text style={s.title}>Wear your story.</Text>
+      <Text style={s.muted}>Discover the latest collections from Tastha.</Text>
+      <Button title="Explore the collection" onPress={() => navigate("Shop")} />
+      {homeLoading ? <Loading /> : null}
+      <ErrorBox message={homeError} retry={() => dispatch(fetchHome())} />
+      {home?.banners?.map((b, i) => (
+        <View key={i} style={s.panel}>
+          <Text style={s.heading}>{b.title}</Text>
+          <Text style={s.muted}>{b.subtitle}</Text>
+          <Button
+            title="Shop collection"
+            outline
+            onPress={() => navigate("Shop")}
+          />
+        </View>
+      ))}
+      {home?.sections?.map((section, i) => (
+        <View key={section.id || i} style={{ gap: 12 }}>
+          <Text style={s.heading}>{section.title}</Text>
+          {section.products?.slice(0, 6).map((p) => (
+            <ProductCard key={p._id} product={p} navigate={navigate} />
+          ))}
+        </View>
+      ))}
+      {home && !home.sections?.some((x) => x.products?.length) ? (
+        <Empty
+          title="Explore Tastha"
+          detail="Open the collection to see currently available products."
+        />
+      ) : null}
+    </ScrollView>
+  );
+}
+export function Catalog({ navigate }: { navigate: Navigate }) {
+  const dispatch = useAppDispatch();
+  const c = useAppSelector((x) => x.catalog);
+  const pin = useAppSelector((x) => x.location?.pinCode);
+  const [filter, setFilter] = useState<CatalogFilter>({
+    search: "",
+    category: "",
+    sort: "newest",
+    maxPrice: "",
+  });
+  const [query, setQuery] = useState(filter);
+  useEffect(() => {
+    const timer = setTimeout(() => setQuery(filter), 350);
+    return () => clearTimeout(timer);
+  }, [filter]);
+  const key = JSON.stringify([query, pin]);
+  useEffect(() => {
+    const task = dispatch(fetchCatalog({ filter: query, page: 1, key }));
+    return () => task.abort();
+  }, [dispatch, key]);
+  const load = (page: number) =>
+    dispatch(fetchCatalog({ filter: query, page, key }));
+  return (
+    <FlatList
+      data={c.items}
+      keyExtractor={(p) => p._id}
+      numColumns={2}
+      contentContainerStyle={{ padding: 10, paddingBottom: 30 }}
+      renderItem={({ item }) => (
+        <ProductCard product={item} navigate={navigate} />
+      )}
+      ListHeaderComponent={
+        <View style={s.content}>
+          <Text style={s.title}>The collection</Text>
+          <Field
+            label="Search products"
+            value={filter.search}
+            onChangeText={(search) => setFilter({ ...filter, search })}
+          />
+          <Field
+            label="Category"
+            placeholder="All categories"
+            value={filter.category}
+            onChangeText={(category) => setFilter({ ...filter, category })}
+          />
+          <View style={s.row}>
+            {[
+              ["newest", "Newest"],
+              ["price-low", "Price ↑"],
+              ["price-high", "Price ↓"],
+              ["popular", "Popular"],
+            ].map(([value, label]) => (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ selected: filter.sort === value }}
+                key={value}
+                style={[s.pill, filter.sort === value && s.active]}
+                onPress={() => setFilter({ ...filter, sort: value })}
+              >
+                <Text style={s.text}>{label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      }
+      onEndReachedThreshold={0.5}
+      onEndReached={() => {
+        if (!c.loading && !c.error && c.hasMore && c.page > 0 && c.key === key)
+          load(c.page + 1);
+      }}
+      ListEmptyComponent={
+        !c.loading && !c.error ? (
+          <Empty
+            title="No matching products"
+            detail="Try another search or category."
+          />
+        ) : undefined
+      }
+      ListFooterComponent={
+        <View>
+          {c.loading ? <Loading /> : null}
+          <ErrorBox message={c.error} retry={() => load(c.page + 1)} />
+          {!c.hasMore && c.items.length ? (
+            <Text style={[s.muted, { textAlign: "center", padding: 20 }]}>
+              You’ve seen the collection.
+            </Text>
+          ) : null}
+        </View>
+      }
+    />
+  );
+}
+export function ProductDetail({
+  id,
+  navigate,
+}: {
+  id: string;
+  navigate: Navigate;
+}) {
+  const dispatch = useAppDispatch();
+  const user = useAppSelector((x) => x.auth.user);
+  const busy = useAppSelector((x) => x.commerce.busy);
+  const [product, setProduct] = useState<Product | null>(null),
+    [error, setError] = useState(""),
+    [notice, setNotice] = useState(""),
+    [size, setSize] = useState(""),
+    [color, setColor] = useState(""),
+    [reload, setReload] = useState(0);
+  useEffect(() => {
+    const controller = new AbortController();
+    setProduct(null);
+    setError("");
+    setSize("");
+    setColor("");
+    api
+      .request<{ product: Product }>("/products/" + encodeURIComponent(id), {
+        signal: controller.signal,
+      })
+      .then((r) => {
+        if (!r.product?._id) throw Error("Product unavailable.");
+        setProduct(r.product);
+      })
+      .catch((e) => {
+        if (!controller.signal.aborted) setError(e.message);
+      });
+    return () => controller.abort();
+  }, [id, reload]);
+  if (error)
+    return <ErrorBox message={error} retry={() => setReload((x) => x + 1)} />;
+  if (!product) return <Loading />;
+  const availability = getVariantAvailability(product, { size, color });
+  const variant = product.variants?.find(
+    (v) => v.size === size && v.color === color,
+  );
+  const images = productImages(product, API_ORIGIN, variant);
+  async function add() {
+    if (!user) {
+      navigate("Login");
+      return;
+    }
+    setNotice("");
+    try {
+      await dispatch(
+        changeBag({
+          kind: "add",
+          productId: id,
+          selectedSize: size || undefined,
+          selectedColor: color || undefined,
+          variantSku: variant?.sku,
+        }),
+      ).unwrap();
+      setNotice("Added to your bag.");
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Could not add this variant.");
+    }
+  }
+  return (
+    <ScrollView contentContainerStyle={s.content}>
+      {variant && images.length === 0 ? (
+        <Text style={s.muted}>
+          No photo is available for this selected variant.
+        </Text>
+      ) : null}
+      {images.map((uri) => (
+        <Image
+          key={uri}
+          source={{ uri }}
+          style={s.image}
+          accessibilityLabel={`${product.name}${color ? " — " + color : ""}`}
+        />
+      ))}
+      <Text style={s.title}>{product.name}</Text>
+      <Text style={s.price}>{money(variant?.price ?? product.price)}</Text>
+      <Text style={s.muted}>{product.description}</Text>
+      {product.variants?.length ? (
+        <>
+          <Text style={s.text}>Colour</Text>
+          <View style={s.row}>
+            {[...new Set(product.variants.map((v) => v.color))].map((v) => (
+              <Pressable
+                key={v}
+                accessibilityRole="button"
+                accessibilityState={{ selected: color === v }}
+                style={[s.pill, color === v && s.active]}
+                onPress={() => setColor(v)}
+              >
+                <Text style={s.text}>{v}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <Text style={s.text}>Size</Text>
+          <View style={s.row}>
+            {[...new Set(product.variants.map((v) => v.size))].map((v) => (
+              <Pressable
+                key={v}
+                accessibilityRole="button"
+                accessibilityState={{ selected: size === v }}
+                style={[s.pill, size === v && s.active]}
+                onPress={() => setSize(v)}
+              >
+                <Text style={s.text}>{v}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </>
+      ) : null}
+      <Text accessibilityLiveRegion="polite" style={s.muted}>
+        {availability.status === "available"
+          ? `${availability.stock} available`
+          : availability.status === "selection_required"
+            ? "Select a size and colour"
+            : availability.status === "inventory_unknown"
+              ? "Stock could not be confirmed"
+              : "This selection is unavailable"}
+      </Text>
+      <Button
+        title="Add to bag"
+        busy={busy}
+        disabled={availability.status !== "available"}
+        onPress={add}
+      />
+      <Button
+        title="Save to wishlist"
+        outline
+        disabled={busy}
+        onPress={() => {
+          if (!user) {
+            navigate("Login");
+            return;
+          }
+          dispatch(changeWishlist({ id, remove: false }))
+            .unwrap()
+            .then(() => setNotice("Saved to wishlist."))
+            .catch((e) => setNotice(e.message));
+        }}
+      />
+      <Button
+        title="Share product"
+        outline
+        onPress={() => {
+          Share.share({
+            message: `${product.name} — https://tasthaofficial.vercel.app/product/${id}`,
+          }).catch(() => setNotice("Sharing is unavailable."));
+        }}
+      />
+      <Text accessibilityLiveRegion="polite" style={s.text}>
+        {notice}
+      </Text>
+      <Text style={s.muted}>
+        Delivery eligibility and current stock are rechecked at checkout.
+      </Text>
+    </ScrollView>
+  );
+}
