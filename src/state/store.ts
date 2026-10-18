@@ -127,7 +127,6 @@ export const fetchCatalog = thunk(
       return (
         arg.page > 1 &&
         !c.loading &&
-        !c.error &&
         c.key === arg.key &&
         c.hasMore &&
         c.page === arg.page - 1

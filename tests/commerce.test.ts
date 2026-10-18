@@ -452,6 +452,27 @@ describe("checkout and saved delivery area stay synchronized", () => {
 
 describe("catalog pagination protection", () => {
   const filter = { search: "", category: "", sort: "newest", maxPrice: "" };
+  it("permits retrying the same page after a network error", async () => {
+    const manager = createSessionManager(storage());
+    let call = 0;
+    const api = {
+      request: vi.fn(async () => {
+        call++;
+        if (call === 2) throw Error("Network unavailable");
+        return {
+          products: [call === 1 ? product : { ...product, _id: "p2" }],
+          pagination: { page: call === 1 ? 1 : 2, total: 40, hasNextPage: true },
+        };
+      }),
+    } as unknown as ReturnType<typeof createApiClient>;
+    const appStore = buildStore({ api, session: manager });
+    await appStore.dispatch(fetchCatalog({ filter, page: 1, key: "retry" }));
+    await appStore.dispatch(fetchCatalog({ filter, page: 2, key: "retry" }));
+    expect(appStore.getState().catalog.error).toBeTruthy();
+    await appStore.dispatch(fetchCatalog({ filter, page: 2, key: "retry" }));
+    expect(appStore.getState().catalog.page).toBe(2);
+    expect(appStore.getState().catalog.items).toHaveLength(2);
+  });
   it("ignores skipped and stale catalog pages", async () => {
     const manager = createSessionManager(storage());
     const api = {
