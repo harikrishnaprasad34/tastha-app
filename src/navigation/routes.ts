@@ -30,6 +30,10 @@ export function routeFor(name: string, id?: string) {
     if (!id) throw Error("An order identifier is required.");
     return "/order/" + encodeURIComponent(id);
   }
+  if (name === "SearchResults") {
+    if (!id?.trim()) throw Error("Enter a search term.");
+    return "/(tabs)/shop?search=" + encodeURIComponent(id.trim());
+  }
   if (name === "Shop" && id)
     return "/(tabs)/shop?category=" + encodeURIComponent(id);
   if (name === "Product") {

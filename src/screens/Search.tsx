@@ -18,6 +18,7 @@ export function Search({ navigate }: { navigate: Navigate }) {
   const [suggestions, setSuggestions] = useState<Suggestions>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -62,7 +63,7 @@ export function Search({ navigate }: { navigate: Navigate }) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query]);
+  }, [query, retry]);
 
   function update(next: string) {
     setQuery(next);
@@ -84,7 +85,12 @@ export function Search({ navigate }: { navigate: Navigate }) {
       <Text style={s.title}>Find your Tastha look</Text>
       <Field label="Search products and categories"
         placeholder="Shirts, sneakers, occasion…" value={query}
-        onChangeText={update} autoFocus autoCapitalize="none" />
+        onChangeText={update} autoFocus autoCapitalize="none"
+        returnKeyType="search"
+        onSubmitEditing={() => {
+          if (query.trim().length >= 2) navigate("SearchResults", query.trim());
+        }}
+      />
       {terms.length ? (
         <View style={s.panel}>
           <Text style={s.heading}>Suggested searches</Text>
@@ -97,7 +103,11 @@ export function Search({ navigate }: { navigate: Navigate }) {
         </View>
       ) : null}
       {busy ? <Loading /> : null}
-      <ErrorBox message={error} />
+      <ErrorBox message={error} retry={() => {
+        setError("");
+        setBusy(true);
+        setRetry((value) => value + 1);
+      }} />
       {categories.length ? (
         <View style={s.panel}>
           <Text style={s.heading}>Matching categories</Text>
@@ -120,8 +130,8 @@ export function Search({ navigate }: { navigate: Navigate }) {
               </View>
             ))}
           </View>
-          <Button title="Browse the entire collection" outline
-            onPress={() => navigate("Shop")} />
+          <Button title="View all matching products" outline
+            onPress={() => navigate("SearchResults", query.trim())} />
         </>
       ) : !busy && query.trim().length >= 2 && !error ? (
         <Empty title="No matching products" detail="Try another name or category." />

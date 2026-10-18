@@ -209,15 +209,17 @@ export function Home({ navigate }: { navigate: Navigate }) {
 export function Catalog({
   navigate,
   category,
+  search,
 }: {
   navigate: Navigate;
   category?: string;
+  search?: string;
 }) {
   const dispatch = useAppDispatch();
   const c = useAppSelector((x) => x.catalog);
   const pin = useAppSelector((x) => x.location?.pinCode);
   const [filter, setFilter] = useState<CatalogFilter>({
-    search: "",
+    search: search || "",
     category: category || "",
     sort: "newest",
     maxPrice: "",
@@ -230,6 +232,13 @@ export function Catalog({
         : { ...current, category: category || "" },
     );
   }, [category]);
+  useEffect(() => {
+    setFilter((current) =>
+      current.search === (search || "")
+        ? current
+        : { ...current, search: search || "" },
+    );
+  }, [search]);
   useEffect(() => {
     const timer = setTimeout(() => setQuery(filter), 350);
     return () => clearTimeout(timer);
@@ -338,6 +347,7 @@ export function ProductDetail({
         signal: controller.signal,
       })
       .then((r) => {
+        if (controller.signal.aborted) return;
         if (!r.product?._id) throw Error("Product unavailable.");
         setProduct(r.product);
       })

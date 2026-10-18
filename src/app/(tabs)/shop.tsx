@@ -4,6 +4,6 @@ import { Catalog } from "../../screens/Shop";
 import { useNavigate } from "../../navigation/useNavigate";
 export default function Screen() {
   const navigate = useNavigate();
-  const { category } = useLocalSearchParams<{ category?: string }>();
-  return <Catalog navigate={navigate} category={category} />;
+  const { category, search } = useLocalSearchParams<{ category?: string; search?: string }>();
+  return <Catalog navigate={navigate} category={category} search={search} />;
 }

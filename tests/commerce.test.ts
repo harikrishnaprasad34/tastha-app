@@ -1026,3 +1026,15 @@ describe("account privacy on explicit sign-out", () => {
     expect(publicLocationAfterSignOut({ label: "Invalid", pinCode: "abc" })).toBeNull();
   });
 });
+
+describe("search to catalog navigation parity", () => {
+  it("carries a search query into the complete product listing", () => {
+    expect(routeFor("SearchResults", "  black shirts  ")).toBe(
+      "/(tabs)/shop?search=black%20shirts",
+    );
+    expect(routeFor("SearchResults", "shirts & pants")).toBe(
+      "/(tabs)/shop?search=shirts%20%26%20pants",
+    );
+    expect(() => routeFor("SearchResults", " ")).toThrow("search term");
+  });
+});

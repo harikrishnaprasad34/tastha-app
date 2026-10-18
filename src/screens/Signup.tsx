@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Linking, Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import { api, session } from "../api/runtime";
@@ -83,9 +83,9 @@ export function Signup({ navigate }: { navigate: Navigate }) {
             </Pressable>
             <View style={s.row}>
               <Button title="View Terms" outline
-                onPress={() => { void Linking.openURL("https://tashta.com/terms"); }} />
+                onPress={() => navigate("Help", "terms")} />
               <Button title="Privacy Policy" outline
-                onPress={() => { void Linking.openURL("https://tashta.com/privacy-policy"); }} />
+                onPress={() => navigate("Help", "privacy")} />
             </View>
             {touched.agree && errors.agree ? <Text style={s.error}>{errors.agree}</Text> : null}
             <ErrorBox message={error} />
