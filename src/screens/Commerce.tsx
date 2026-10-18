@@ -452,11 +452,11 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
         {verifiedQuote ? (
           <View style={s.panel}>
             {[
-              ["Products", verifiedQuote.quote.subtotal],
-              ["Discount", -verifiedQuote.quote.discount],
-              ["Delivery", verifiedQuote.quote.shippingFee],
-              ["Tax", verifiedQuote.quote.tax],
-              ["Total", verifiedQuote.quote.totalAmount],
+              ["Products", verifiedQuote.subtotal],
+              ["Discount", -verifiedQuote.discount],
+              ["Delivery", verifiedQuote.shippingFee],
+              ["Tax", verifiedQuote.tax],
+              ["Total", verifiedQuote.totalAmount],
             ].map(([label, value]) => (
               <View
                 key={label}
