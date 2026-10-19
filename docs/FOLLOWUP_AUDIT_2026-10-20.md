@@ -2,7 +2,7 @@
 
 Reference: tastha_official/codex/fix-checkout-order-security collection routes,
 collectionController, collection.service, CollectionsPage and CollectionDetailPage.
-Target: tastha-app/main; app version 1.0.2, Android versionCode 3.
+Target: tastha-app/main; app version 1.0.3, Android versionCode 4.
 
 ## Changes
 
@@ -60,3 +60,19 @@ This inventory is not a claim that each page has passed rendered device testing.
   and responsive layouts need device acceptance across the customer screens.
 - No claim of full Zepto visual parity, all-module completion or live payment
   success is made. The existing Tastha brand is retained.
+
+## Installed release startup failure and correction
+
+The ff26951 APK compiled and its signature/digest were valid, but the Android 31
+emulator killed the app before React initialized. Logcat showed WorkManager's
+InitializationProvider failing to instantiate WorkDatabase. Inspection of the
+actual DEX class androidx.work.impl.WorkDatabase_Impl found no direct methods:
+R8 had removed its public reflection constructor. This invalidates any claim of
+startup verification for 1.0.2.
+
+Version 1.0.3 adds a narrowly scoped Expo build-properties extraProguardRules
+entry preserving that class's public no-argument constructor. Generated native
+files remain generated. The APK pipeline now inspects the actual built DEX to
+assert the constructor exists, in addition to the emulator launch test. Release
+minification remains enabled. The test APK builds ARM64 and x86_64 ABIs; the
+normal production configuration retains Expo's default ABI list.

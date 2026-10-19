@@ -30,7 +30,9 @@ jobs:
       - run: npx expo prebuild --platform android --no-install
       - name: Build installable standalone test APK (debug signing)
         working-directory: android
-        run: ./gradlew assembleRelease --no-daemon
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,x86_64 --no-daemon
+      - name: Verify release WorkManager constructor
+        run: python3 scripts/verify-apk-startup.py android/app/build/outputs/apk/release/app-release.apk
       - uses: actions/upload-artifact@v4
         with:
           name: tastha-android-development-apk
