@@ -51,21 +51,14 @@ export function AuthCode({
       });
       if (recovery && !result.challenge)
         throw Error("Recovery could not be started.");
-      if (!recovery && result.whatsappDelivered === false) {
-        setRequested("");
-        setError(
-          "The WhatsApp code could not be delivered. Retry later or use email and password.",
-        );
-        return;
-      }
       setRequested(value);
       setChallenge(result.challenge || "");
       setOtp("");
       setNotice(
-        result.whatsappDelivered === false
-          ? "The code could not be delivered. Please retry later."
-          : result.message ||
-              "Check your registered WhatsApp number for the code.",
+        result.message ||
+          (result.whatsappDelivered === false
+            ? "WhatsApp delivery is not confirmed. Use a code you have received, retry later, or sign in with email and password."
+            : "Check your registered WhatsApp number for the code."),
       );
     } catch (e) {
       setError(
