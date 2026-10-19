@@ -3,6 +3,7 @@ export interface DeliveryEligibility {
   configured: boolean;
   serviceable: boolean | null;
   message?: string;
+  code?: string;
 }
 export async function readDeliveryEligibility(api: ApiClient, pinCode: string) {
   const result = await api.request<{ delivery?: DeliveryEligibility }>(
@@ -15,10 +16,17 @@ export async function readDeliveryEligibility(api: ApiClient, pinCode: string) {
     throw Error("Delivery availability could not be verified. Please retry.");
   return result.delivery;
 }
-/** Saving a location is separate from authorizing a payable delivery quote. */
+/** Match checkoutService.catalogDeliveryBlocked without inventing coverage.
+ * Unconfigured coverage remains unknown; the server quote/order still validates
+ * the address, stock and amount. Explicit coverage denials must block checkout.
+ */
 export async function deliveryEligibility(api: ApiClient, pinCode: string) {
   const delivery = await readDeliveryEligibility(api, pinCode);
-  if (delivery.serviceable !== true)
+  const unconfigured =
+    delivery.configured === false &&
+    delivery.serviceable === null &&
+    delivery.code === "UNCONFIGURED";
+  if (delivery.serviceable !== true && !unconfigured)
     throw Error(
       delivery.message ||
         "Delivery availability could not be verified. Please retry.",

@@ -742,6 +742,7 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
     ]),
     [optionsReady, setOptionsReady] = useState(false),
     [methodsError, setMethodsError] = useState(""),
+    [deliveryNotice, setDeliveryNotice] = useState(""),
     [method, setMethod] = useState(""),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(false),
@@ -785,6 +786,7 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
   }, [refresh]);
   useEffect(() => {
     setError("");
+    setDeliveryNotice("");
     if (!user || !bag?.items.length || !address) {
       setLoading(false);
       return;
@@ -805,7 +807,7 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
       }),
       deliveryEligibility(api, address.pinCode),
     ])
-      .then(([q]) => {
+      .then(([q, delivery]) => {
         if (controller.signal.aborted) return;
         if (!isValidCheckoutQuote(q.quote))
           throw Error(
@@ -813,6 +815,11 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
           );
         setQuoteFor(fingerprint);
         setQuote(q.quote);
+        setDeliveryNotice(
+          delivery.serviceable === null
+            ? "Area coverage is not configured. This total is calculated by Tastha’s order service; delivery availability is not confirmed."
+            : "",
+        );
       })
       .catch((e) => {
         if (!controller.signal.aborted) {
@@ -915,6 +922,7 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
         ))}
         {loading ? <Loading /> : null}
         <ErrorBox message={error} />
+        {deliveryNotice ? <Text style={s.muted}>{deliveryNotice}</Text> : null}
         <Text style={s.heading}>Payment options</Text>
         <ErrorBox message={methodsError} />
         {!address ? (

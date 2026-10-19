@@ -300,4 +300,38 @@ describe("persisted delivery ownership", () => {
     ).toBeUndefined());
 });
 
-it("does not restore a legacy account address while signed out",()=>expect(restoreDeliveryForAccount(JSON.stringify({label:"Old private street",pinCode:"500034",addressId:"old"}))).toEqual({label:"Delivery area 500034",pinCode:"500034"}));
+it("does not restore a legacy account address while signed out", () =>
+  expect(
+    restoreDeliveryForAccount(
+      JSON.stringify({
+        label: "Old private street",
+        pinCode: "500034",
+        addressId: "old",
+      }),
+    ),
+  ).toEqual({ label: "Delivery area 500034", pinCode: "500034" }));
+
+it("preserves unknown coverage while deferring unconfigured delivery to server checkout", async () => {
+  const delivery = {
+    configured: false,
+    serviceable: null,
+    code: "UNCONFIGURED",
+  };
+  const api = {
+    request: vi.fn().mockResolvedValue({ delivery }),
+  } as unknown as Parameters<typeof deliveryEligibility>[0];
+  expect(await deliveryEligibility(api, "501505")).toEqual(delivery);
+});
+it.each([
+  { configured: true, serviceable: false, code: "NOT_SERVICEABLE" },
+  { configured: true, serviceable: null, code: "CONFIGURATION_INVALID" },
+  { configured: false, serviceable: null },
+])(
+  "does not bypass a denial or malformed coverage response: %j",
+  async (delivery) => {
+    const api = {
+      request: vi.fn().mockResolvedValue({ delivery }),
+    } as unknown as Parameters<typeof deliveryEligibility>[0];
+    await expect(deliveryEligibility(api, "501505")).rejects.toThrow();
+  },
+);
