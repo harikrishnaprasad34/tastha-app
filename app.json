@@ -37,7 +37,8 @@
         }
       ],
       "expo-secure-store",
-      "expo-router"
+      "expo-router",
+      "expo-font"
     ]
   }
 }
