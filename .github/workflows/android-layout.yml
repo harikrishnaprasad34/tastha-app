@@ -1,4 +1,5 @@
 name: Android layout iteration APK
+# Navigator-owned headers remove blank reserved space on secondary tabs.
 on:
   push:
     paths: [.github/workflows/android-layout.yml]

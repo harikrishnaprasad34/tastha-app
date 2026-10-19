@@ -63,6 +63,162 @@ function StoreTabBar(props: BottomTabBarProps) {
     </View>
   );
 }
+function StoreHeader({ route }: { route: { name: string } }) {
+  const location = useAppSelector((x) => x.location);
+  const address = deliveryHeader(location);
+  if (route.name !== "index")
+    return (
+      <SafeAreaView
+        edges={["top", "left", "right"]}
+        style={[s.header, { backgroundColor: colors.background }]}
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            minHeight: 44,
+          }}
+        >
+          <Text
+            style={{
+              flex: 1,
+              color: colors.gold,
+              letterSpacing: 3,
+              fontSize: 15,
+              fontWeight: "800",
+            }}
+          >
+            TASTHA
+          </Text>
+          <Link href="/search" asChild>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Search products"
+              style={{
+                width: 44,
+                height: 44,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Ionicons name="search-outline" size={22} color={colors.text} />
+            </Pressable>
+          </Link>
+          <Link href="/help/faq" asChild>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Help and FAQs"
+              style={{
+                width: 44,
+                height: 44,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Ionicons
+                name="help-circle-outline"
+                size={22}
+                color={colors.text}
+              />
+            </Pressable>
+          </Link>
+        </View>
+      </SafeAreaView>
+    );
+  return (
+    <SafeAreaView
+      edges={["top", "left", "right"]}
+      style={[s.header, { backgroundColor: colors.background }]}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <View
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 12,
+            backgroundColor: colors.elevated,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Ionicons name="location" size={21} color={colors.gold} />
+        </View>
+        <Link href="/location" asChild>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              "Deliver to " +
+              address.title +
+              ". " +
+              address.subtitle +
+              ". Change delivery location"
+            }
+            style={{
+              flex: 1,
+              minHeight: 44,
+              justifyContent: "center",
+              gap: 2,
+            }}
+          >
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
+            >
+              <Text
+                numberOfLines={1}
+                style={{
+                  color: colors.text,
+                  fontWeight: "700",
+                  fontSize: 15,
+                  flexShrink: 1,
+                }}
+              >
+                {address.title}
+              </Text>
+              <Ionicons name="chevron-down" size={15} color={colors.gold} />
+            </View>
+            <Text numberOfLines={1} style={s.small}>
+              {address.subtitle}
+            </Text>
+          </Pressable>
+        </Link>
+        <Text
+          style={{
+            color: colors.gold,
+            fontWeight: "800",
+            fontSize: 12,
+            letterSpacing: 2,
+          }}
+        >
+          TASTHA
+        </Text>
+      </View>
+      <Link href="/search" asChild>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Search products"
+          style={{
+            minHeight: 46,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
+            paddingHorizontal: 12,
+            borderRadius: 12,
+            backgroundColor: colors.elevated,
+            borderWidth: 1,
+            borderColor: colors.border,
+          }}
+        >
+          <Ionicons name="search-outline" size={20} color={colors.gold} />
+          <Text style={[s.muted, { flex: 1 }]}>
+            Search fashion, brands & more
+          </Text>
+          <Ionicons name="options-outline" size={19} color={colors.muted} />
+        </Pressable>
+      </Link>
+    </SafeAreaView>
+  );
+}
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const location = useAppSelector((x) => x.location);
@@ -87,94 +243,13 @@ export default function TabLayout() {
       if (!location) router.push("/location");
     }
   }, [location, router]);
-  const address = deliveryHeader(location);
   return (
     <View style={s.screen}>
-      <SafeAreaView edges={["top", "left", "right"]} style={s.header}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <View
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: 12,
-              backgroundColor: colors.elevated,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Ionicons name="location" size={21} color={colors.gold} />
-          </View>
-          <Link href="/location" asChild>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Change delivery location"
-              style={{
-                flex: 1,
-                minHeight: 44,
-                justifyContent: "center",
-                gap: 2,
-              }}
-            >
-              <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
-              >
-                <Text
-                  numberOfLines={1}
-                  style={{
-                    color: colors.text,
-                    fontWeight: "700",
-                    fontSize: 15,
-                    flexShrink: 1,
-                  }}
-                >
-                  {address.title}
-                </Text>
-                <Ionicons name="chevron-down" size={15} color={colors.gold} />
-              </View>
-              <Text numberOfLines={1} style={s.small}>
-                {address.subtitle}
-              </Text>
-            </Pressable>
-          </Link>
-          <Text
-            style={{
-              color: colors.gold,
-              fontWeight: "800",
-              fontSize: 12,
-              letterSpacing: 2,
-            }}
-          >
-            TASTHA
-          </Text>
-        </View>
-        <Link href="/search" asChild>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Search products"
-            style={{
-              minHeight: 46,
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 10,
-              paddingHorizontal: 12,
-              borderRadius: 12,
-              backgroundColor: colors.elevated,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <Ionicons name="search-outline" size={20} color={colors.gold} />
-            <Text style={[s.muted, { flex: 1 }]}>
-              Search fashion, brands & more
-            </Text>
-            <Ionicons name="options-outline" size={19} color={colors.muted} />
-          </Pressable>
-        </Link>
-      </SafeAreaView>
       <Tabs
         tabBar={(props) => <StoreTabBar {...props} />}
         screenOptions={{
-          headerShown: false,
+          headerShown: true,
+          header: StoreHeader,
           tabBarLabelStyle: { fontSize: 12, fontWeight: "600" },
           tabBarItemStyle: { paddingVertical: 4 },
           tabBarActiveTintColor: colors.gold,
