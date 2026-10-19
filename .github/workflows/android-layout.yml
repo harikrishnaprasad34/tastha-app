@@ -1,5 +1,5 @@
 name: Android layout iteration APK
-# Navigator-owned headers remove blank reserved space on secondary tabs.
+# Navigator-owned headers render as React components across lazy tab switches.
 on:
   push:
     paths: [.github/workflows/android-layout.yml]

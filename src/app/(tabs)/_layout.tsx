@@ -249,7 +249,7 @@ export default function TabLayout() {
         tabBar={(props) => <StoreTabBar {...props} />}
         screenOptions={{
           headerShown: true,
-          header: StoreHeader,
+          header: (props) => <StoreHeader route={props.route} />,
           tabBarLabelStyle: { fontSize: 12, fontWeight: "600" },
           tabBarItemStyle: { paddingVertical: 4 },
           tabBarActiveTintColor: colors.gold,
