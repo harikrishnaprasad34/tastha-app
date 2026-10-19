@@ -1,0 +1,54 @@
+name: Android installed APK startup check
+on:
+  push:
+    paths: [.github/workflows/android-startup.yml]
+  workflow_dispatch:
+    inputs:
+      artifact_id:
+        description: APK artifact to verify
+        default: "12144395080"
+        required: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  startup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download APK under investigation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ inputs.artifact_id || '12144395080' }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" > apk.zip
+          unzip apk.zip -d apk
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 31
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: |
+            mkdir -p startup-results
+            adb install apk/app-release.apk
+            adb logcat -c
+            adb shell am start -W -n com.tastha.app/.MainActivity
+            sleep 25
+            adb logcat -d > startup-results/logcat.txt
+            adb shell uiautomator dump /sdcard/window.xml
+            adb pull /sdcard/window.xml startup-results/window.xml
+            adb exec-out screencap -p > startup-results/screen.png
+            adb shell pidof com.tastha.app
+            ! grep -E 'FATAL EXCEPTION|Fatal signal|ReactNativeJS:.*(Error:|Exception)' startup-results/logcat.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-startup-results
+          path: startup-results/
