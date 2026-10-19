@@ -156,7 +156,7 @@ export function ProductCard({
           numberOfLines={1}
           style={{
             color: colors.muted,
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: "700",
             letterSpacing: 0.6,
           }}
@@ -165,7 +165,7 @@ export function ProductCard({
         </Text>
         <Text
           numberOfLines={2}
-          style={[s.text, { minHeight: 36, fontSize: 13, lineHeight: 18 }]}
+          style={[s.text, { minHeight: 40, fontSize: 14, lineHeight: 20 }]}
         >
           {product.name}
         </Text>
@@ -251,7 +251,7 @@ function Shortcut({
         numberOfLines={2}
         style={{
           color: colors.text,
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: "600",
           textAlign: "center",
         }}
@@ -444,7 +444,7 @@ export function Home({ navigate }: { navigate: Navigate }) {
                 <Text
                   style={{
                     color: colors.gold,
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: "700",
                     letterSpacing: 1.5,
                   }}

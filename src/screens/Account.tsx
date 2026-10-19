@@ -1,3 +1,4 @@
+import { optionalLocationLookup } from "../shared/locationLookup";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useFocusEffect } from "expo-router";
@@ -796,13 +797,12 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
       setPin("");
       setLabel("");
       const point = { latitude: coords.lat, longitude: coords.lng };
-      const native = await Location.reverseGeocodeAsync(point)
-        .then((items) => items[0] ?? null)
-        .catch(() => null);
-      let server = null;
-      {
-        try {
-          const result = await api.request<{
+      const [native, serverResult] = await Promise.all([
+        optionalLocationLookup(
+          Location.reverseGeocodeAsync(point).then((items) => items[0] ?? null),
+        ),
+        optionalLocationLookup(
+          api.request<{
             location?: import("../shared/deliveryLocation").ServerPlace;
           }>(
             "/location/reverse?lat=" +
@@ -810,12 +810,10 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
               "&lng=" +
               encodeURIComponent(coords.lng),
             { timeout: 7000 },
-          );
-          server = result.location || null;
-        } catch {
-          // Native geocoding or manual confirmation remains available.
-        }
-      }
+          ),
+        ),
+      ]);
+      const server = serverResult?.location || null;
       const resolved = describeDetectedPlace(native, server);
       setPin(resolved.pinCode);
       setLabel(resolved.label);

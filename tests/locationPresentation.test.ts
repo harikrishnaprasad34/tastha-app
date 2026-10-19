@@ -1,5 +1,6 @@
+import { optionalLocationLookup } from "../src/shared/locationLookup";
 import { imageUrl } from "../src/shared/catalog";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   deliveryHeader,
   describeDetectedPlace,
@@ -98,5 +99,33 @@ describe("website CMS category artwork", () => {
         "https://example.test",
       ),
     ).toBeUndefined();
+  });
+});
+
+describe("bounded location lookup", () => {
+  it("returns a successful address and clears its timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      expect(await optionalLocationLookup(Promise.resolve("Road 2"))).toBe(
+        "Road 2",
+      );
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it("releases the form when a native provider stalls or fails", async () => {
+    vi.useFakeTimers();
+    try {
+      const stalled = optionalLocationLookup(new Promise<string>(() => {}));
+      await vi.advanceTimersByTimeAsync(7000);
+      expect(await stalled).toBeNull();
+      expect(
+        await optionalLocationLookup(Promise.reject(Error("Provider offline"))),
+      ).toBeNull();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

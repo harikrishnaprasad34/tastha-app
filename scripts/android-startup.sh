@@ -42,6 +42,11 @@ for route in shop wishlist bag account search; do
   adb pull /sdcard/window.xml "startup-results/native-${route}.xml" >/dev/null
   adb exec-out screencap -p > "startup-results/native-${route}.png"
 done
+# Verify route rendering, not simply a running Android process.
+grep -q 'The collection' startup-results/native-shop.xml
+grep -Eq 'Sign in|Your bag' startup-results/native-bag.xml
+grep -Eq 'Tastha account|My Account' startup-results/native-account.xml
+grep -q 'Find your Tastha look' startup-results/native-search.xml
 adb shell am start -W -a android.intent.action.VIEW -d 'tastha:///' com.tastha.app
 sleep 15
 adb shell uiautomator dump /sdcard/window.xml >/dev/null
