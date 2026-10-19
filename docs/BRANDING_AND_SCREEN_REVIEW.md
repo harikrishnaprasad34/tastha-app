@@ -9,3 +9,5 @@ The screenshot response “Use email or username…” is backend HTTP409: multi
 Version 1.0.3 / Android code4 requires a full native rebuild to change launcher resources; do not use the JavaScript-only layout repack workflow for this version.
 
 The current official backend requires username during registration. Native signup now collects and normalizes it using the backend rule (3–30 letters, digits or underscores, first character a letter); password sign-in accepts registered email or username. Existing email requests retain their legacy email field. No account was created or signed into during checks.
+
+Generated native resources also exposed a separate default splash image. Installed the SDK58-compatible expo-splash-screen module and configured the official mark on charcoal. Verified the generated Android adaptive icon, splash bitmap and splash background before publishing.

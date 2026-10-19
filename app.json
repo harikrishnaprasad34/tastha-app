@@ -43,7 +43,16 @@
       ],
       "expo-secure-store",
       "expo-router",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/icon.png",
+          "imageWidth": 240,
+          "backgroundColor": "#0A0B0E",
+          "resizeMode": "contain"
+        }
+      ]
     ]
   }
 }
