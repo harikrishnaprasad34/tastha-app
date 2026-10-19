@@ -2,7 +2,7 @@
   "expo": {
     "name": "Tastha",
     "slug": "tastha-app",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -17,6 +17,7 @@
       }
     },
     "android": {
+      "versionCode": 2,
       "package": "com.tastha.app",
       "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
     },

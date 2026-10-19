@@ -276,6 +276,8 @@ export function Account({ navigate }: { navigate: Navigate }) {
         onPress={() => navigate("Help", "shipping")}
       />
       <Button title="Style studio" outline onPress={() => navigate("AI")} />
+      <Button title="All website pages" outline onPress={() => navigate("WebsitePages")} />
+      <Button title="Admin workspace" outline onPress={() => navigate("Admin")} />
     </ScrollView>
   );
 }

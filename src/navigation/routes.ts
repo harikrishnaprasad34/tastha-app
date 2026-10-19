@@ -1,5 +1,7 @@
 import { catalogQueryKeys } from "../shared/catalogFilters";
 const routes: Record<string, string> = {
+  WebsitePages: "/website",
+  Admin: "/website/admin-dashboard",
   Contact: "/contact",
   Security: "/security",
   SavedLooks: "/saved-looks",
