@@ -193,7 +193,10 @@ describe("secure sessions and requests", () => {
     await manager.save(customer, manager.revision(), true);
     expect(appStore.getState().location?.label).toBe("Road 12");
     await manager.clear();
-    expect(appStore.getState().location).toEqual({label:"Delivery area 500034",pinCode:"500034"});
+    expect(appStore.getState().location).toEqual({
+      label: "Delivery area 500034",
+      pinCode: "500034",
+    });
   });
   it("rejects a staff session in the customer client", async () => {
     const manager = createSessionManager(storage());
@@ -1157,4 +1160,29 @@ describe("category names from the website match backend filtering", () => {
     expect(resolveCatalogCategory("unknown", categories)).toBe("");
     expect(resolveCatalogCategory(undefined, categories)).toBe("");
   });
+});
+
+it("prefers a real building name and retains its road and PIN", () => {
+  expect(
+    describeDetectedPlace(
+      {
+        name: "Lotus Towers",
+        streetNumber: "12",
+        street: "Road",
+        district: "Banjara Hills",
+        city: "Hyderabad",
+        postalCode: "500034",
+      },
+      null,
+    ),
+  ).toEqual({
+    label: "Lotus Towers, 12 Road, Banjara Hills, Hyderabad",
+    pinCode: "500034",
+  });
+  expect(
+    describeDetectedPlace(
+      { name: "Hyderabad", street: "Road No 12", city: "Hyderabad" },
+      null,
+    ).label,
+  ).toBe("Road No 12, Hyderabad");
 });

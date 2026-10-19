@@ -36,7 +36,17 @@ export function describeDetectedPlace(
     .join(" ");
   const locality = trimmed(native?.district) || trimmed(native?.subregion);
   const city = trimmed(native?.city) || trimmed(native?.region);
-  const detailed = [street || trimmed(native?.name), locality, city]
+  const name = trimmed(native?.name);
+  // Native geocoders may return a building name, a repeated street, or a city.
+  const building =
+    name &&
+    ![street, trimmed(native?.street), locality, city].some(
+      (part) => part && part.toLowerCase() === name.toLowerCase(),
+    ) &&
+    !/^\d+$/.test(name)
+      ? name
+      : "";
+  const detailed = [building, street, locality, city]
     .filter((part, index, parts) => part && parts.indexOf(part) === index)
     .join(", ");
   // The backend's geocoding fallback uses a generic "Pinpoint Location"
@@ -53,7 +63,7 @@ export function describeDetectedPlace(
     trimmed(trustworthyServer?.address) ||
     trimmed(trustworthyServer?.city);
   const label =
-    (street ? detailed : serverLabel || detailed) ||
+    (street || building ? detailed : serverLabel || detailed) ||
     trimmed(native?.formattedAddress);
   const pinCode =
     [

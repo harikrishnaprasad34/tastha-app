@@ -728,7 +728,7 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
   const user = useAppSelector((x) => x.auth.user);
-  const { bag, addresses, selectedAddressId } = useAppSelector(
+  const { bag, addresses, selectedAddressId, pending, errors } = useAppSelector(
     (x) => x.commerce,
   );
   const address = addresses.find((a) => a._id === selectedAddressId);
@@ -736,6 +736,7 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
     [quoteFor, setQuoteFor] = useState(""),
     [methods, setMethods] = useState<PaymentMethod[]>([]),
     [optionsReady, setOptionsReady] = useState(false),
+    [methodsError, setMethodsError] = useState(""),
     [method, setMethod] = useState(""),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(false),
@@ -751,10 +752,34 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
     dispatch(fetchAddresses());
   }, [dispatch]);
   useEffect(() => {
-    // Keep the last bill and selection visible during gateway refresh.
-    // quoteFor binds the amount to the current account, bag and address.
-    setError("");
+    const controller = new AbortController();
     setOptionsReady(false);
+    setMethodsError("");
+    api
+      .request<{ paymentMethods: PaymentMethod[] }>("/payment/methods", {
+        signal: controller.signal,
+      })
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        if (!Array.isArray(result.paymentMethods))
+          throw Error("Payment options could not be loaded. Please retry.");
+        setMethods(result.paymentMethods);
+        setMethod((current) =>
+          result.paymentMethods.some(
+            (option) => option.code === current && option.enabled,
+          )
+            ? current
+            : "",
+        );
+        setOptionsReady(true);
+      })
+      .catch((e) => {
+        if (!controller.signal.aborted) setMethodsError(e.message);
+      });
+    return () => controller.abort();
+  }, [refresh]);
+  useEffect(() => {
+    setError("");
     if (!user || !bag?.items.length || !address) {
       setLoading(false);
       return;
@@ -773,29 +798,22 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
         },
         signal: controller.signal,
       }),
-      api.request<{ paymentMethods: PaymentMethod[] }>("/payment/methods", {
-        signal: controller.signal,
-      }),
       deliveryEligibility(api, address.pinCode),
     ])
-      .then(([q, m]) => {
+      .then(([q]) => {
         if (controller.signal.aborted) return;
-        if (!isValidCheckoutQuote(q.quote) || !Array.isArray(m.paymentMethods))
-          throw Error("Payment options or totals could not be verified.");
+        if (!isValidCheckoutQuote(q.quote))
+          throw Error(
+            "Your total could not be verified. Refresh your bill to retry.",
+          );
         setQuoteFor(fingerprint);
         setQuote(q.quote);
-        setMethods(m.paymentMethods);
-        setMethod((current) =>
-          m.paymentMethods.some(
-            (option) => option.code === current && option.enabled,
-          )
-            ? current
-            : "",
-        );
-        setOptionsReady(true);
       })
       .catch((e) => {
-        if (!controller.signal.aborted) setError(e.message);
+        if (!controller.signal.aborted) {
+          setQuoteFor("");
+          setError(e.message);
+        }
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
@@ -847,9 +865,15 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
   return (
     <View style={s.screen}>
       <ScrollView contentContainerStyle={s.content}>
-        <Text style={s.title}>Checkout</Text>
+        <Text style={s.muted}>ADDRESS › PAYMENT › CONFIRMATION</Text>
+        <ErrorBox message={errors.bag} retry={() => dispatch(fetchBag())} />
+        <ErrorBox
+          message={errors.addresses}
+          retry={() => dispatch(fetchAddresses())}
+        />
+        {pending.bag || pending.addresses ? <Loading /> : null}
         <Button
-          title="Check interrupted payment"
+          title="Check a previous payment"
           outline
           disabled={paying}
           onPress={() => navigate("PaymentStatus")}
@@ -864,7 +888,13 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
             </Text>
           </View>
         ) : (
-          <Empty title="Choose a delivery address" />
+          <View style={s.panel}>
+            <Text style={s.heading}>Where should we deliver?</Text>
+            <Text style={s.muted}>
+              Choose or add your full address to calculate delivery charges and
+              your final total.
+            </Text>
+          </View>
         )}
         <Button
           title="Choose / add address"
@@ -880,8 +910,13 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
         ))}
         {loading ? <Loading /> : null}
         <ErrorBox message={error} />
+        <Text style={s.heading}>Payment options</Text>
+        <ErrorBox message={methodsError} />
+        {!address ? (
+          <Text style={s.muted}>Add a delivery address before paying.</Text>
+        ) : null}
         <Button
-          title="Refresh payment options"
+          title="Refresh bill & payment options"
           outline
           disabled={paying || loading}
           onPress={() => setRefresh((x) => x + 1)}
@@ -928,7 +963,10 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
                 !available && s.disabled,
               ]}
             >
-              <Text style={s.text}>{option.name || code}</Text>
+              <View style={[s.row, { justifyContent: "space-between" }]}>
+                <Text style={s.heading}>{option.name || code}</Text>
+                <Text style={s.price}>{method === code ? "●" : "○"}</Text>
+              </View>
               {!available ? (
                 <Text style={s.muted}>
                   {!optionsReady
@@ -955,21 +993,32 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
         <Text style={s.price}>
           {verifiedQuote
             ? money(verifiedQuote.totalAmount)
-            : "Awaiting verified total"}
+            : !address
+              ? "Add address to see total"
+              : loading
+                ? "Calculating your total…"
+                : "Total unavailable — refresh bill"}
         </Text>
         <Button
-          title={method === "COD" ? "Place COD order" : "Pay securely"}
+          title={
+            !address
+              ? "Choose delivery address"
+              : method === "COD"
+                ? "Place COD order"
+                : "Pay securely"
+          }
           busy={paying}
           disabled={
-            !verifiedQuote ||
-            !optionsReady ||
-            loading ||
-            !method ||
-            !address ||
-            !methods.some((x) => x.code === method && x.enabled) ||
-            (method !== "COD" && !hasNativePayments())
+            Boolean(pending.bag || pending.addresses) ||
+            (Boolean(address) &&
+              (!verifiedQuote ||
+                !optionsReady ||
+                loading ||
+                !method ||
+                !methods.some((x) => x.code === method && x.enabled) ||
+                (method !== "COD" && !hasNativePayments())))
           }
-          onPress={pay}
+          onPress={() => (address ? pay() : navigate("Addresses"))}
         />
       </View>
     </View>
