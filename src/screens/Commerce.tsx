@@ -734,7 +734,12 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
   const address = addresses.find((a) => a._id === selectedAddressId);
   const [quote, setQuote] = useState<Quote | null>(null),
     [quoteFor, setQuoteFor] = useState(""),
-    [methods, setMethods] = useState<PaymentMethod[]>([]),
+    [methods, setMethods] = useState<PaymentMethod[]>([
+      { code: "UPI", name: "UPI", enabled: false },
+      { code: "CARD", name: "Credit & debit cards", enabled: false },
+      { code: "NET_BANKING", name: "Net banking", enabled: false },
+      { code: "COD", name: "Cash on delivery", enabled: false },
+    ]),
     [optionsReady, setOptionsReady] = useState(false),
     [methodsError, setMethodsError] = useState(""),
     [method, setMethod] = useState(""),

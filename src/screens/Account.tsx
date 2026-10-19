@@ -254,28 +254,79 @@ export function Account({ navigate }: { navigate: Navigate }) {
           />
         </>
       )}
-      <Button
-        title="Delivery location"
-        outline
-        onPress={() => navigate("Location")}
-      />
-      <Button title="Contact Us" outline onPress={() => navigate("Contact")} />
-      <Button
-        title="Help and FAQs"
-        outline
-        onPress={() => navigate("Help", "faq")}
-      />
-      <Button
-        title="Privacy policy"
-        outline
-        onPress={() => navigate("Help", "privacy")}
-      />
-      <Button
-        title="Shipping and returns"
-        outline
-        onPress={() => navigate("Help", "shipping")}
-      />
-      <Button title="Style studio" outline onPress={() => navigate("AI")} />
+      <Text style={s.heading}>Preferences & support</Text>
+      <View style={[s.panel, { padding: 0, gap: 0 }]}>
+        {[
+          {
+            title: "Delivery location",
+            detail: delivery?.label || "Choose your delivery area",
+            icon: "⌖",
+            action: () => navigate("Location"),
+          },
+          {
+            title: "Contact us",
+            detail: "Get help with your shopping",
+            icon: "☎",
+            action: () => navigate("Contact"),
+          },
+          {
+            title: "Help & FAQs",
+            detail: "Answers to common questions",
+            icon: "?",
+            action: () => navigate("Help", "faq"),
+          },
+          {
+            title: "Privacy policy",
+            detail: "How your information is handled",
+            icon: "◇",
+            action: () => navigate("Help", "privacy"),
+          },
+          {
+            title: "Shipping & returns",
+            detail: "Delivery and return information",
+            icon: "⇄",
+            action: () => navigate("Help", "shipping"),
+          },
+          {
+            title: "Style studio",
+            detail: "Discover your next look",
+            icon: "✧",
+            action: () => navigate("AI"),
+          },
+        ].map((item, index) => (
+          <Pressable
+            key={item.title}
+            accessibilityRole="button"
+            onPress={item.action}
+            style={({ pressed }) => ({
+              padding: 16,
+              minHeight: 72,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 12,
+              borderTopWidth: index ? 1 : 0,
+              borderColor: "#303139",
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <Text
+              style={[s.price, { width: 28, textAlign: "center" }]}
+              accessibilityElementsHidden
+            >
+              {item.icon}
+            </Text>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={[s.text, { fontWeight: "600" }]}>{item.title}</Text>
+              <Text style={s.small} numberOfLines={2}>
+                {item.detail}
+              </Text>
+            </View>
+            <Text style={s.muted} accessibilityElementsHidden>
+              ›
+            </Text>
+          </Pressable>
+        ))}
+      </View>
     </ScrollView>
   );
 }

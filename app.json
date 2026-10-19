@@ -2,9 +2,9 @@
   "expo": {
     "name": "Tastha",
     "slug": "tastha-app",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/tastha-mark.png",
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
@@ -18,10 +18,15 @@
     },
     "android": {
       "package": "com.tastha.app",
-      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/tastha-mark.png",
+        "backgroundColor": "#0A0B0E"
+      },
+      "versionCode": 2
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/tastha-mark.png"
     },
     "scheme": "tastha",
     "backgroundColor": "#0A0B0E",
