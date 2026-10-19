@@ -68,7 +68,7 @@ sleep 2
 adb shell input swipe 540 1600 540 350 400
 sleep 2
 adb exec-out screencap -p > startup-results/launcher.png
-for route in otp recovery; do
+for route in otp recovery signup login; do
   adb shell am start -W -a android.intent.action.VIEW -d "tastha:///$route" com.tastha.app
   sleep 4
   adb shell uiautomator dump /sdcard/window.xml >/dev/null
@@ -77,6 +77,8 @@ for route in otp recovery; do
 done
 grep -q 'WhatsApp sign in' startup-results/native-otp.xml
 grep -q 'Reset password' startup-results/native-recovery.xml
+grep -q 'Username' startup-results/native-signup.xml
+grep -q 'Email or username' startup-results/native-login.xml
 
 # Exercise the new native page directory and the real, unauthenticated admin
 # website. No credentials or admin mutations are used in this acceptance check.

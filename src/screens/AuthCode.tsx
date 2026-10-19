@@ -57,13 +57,13 @@ export function AuthCode({
       setNotice(
         result.message ||
           (result.whatsappDelivered === false
-            ? "WhatsApp delivery is not confirmed. Use a code you have received, retry later, or sign in with email and password."
+            ? "WhatsApp delivery is not confirmed. Use a code you have received, retry later, or sign in with email or username and password."
             : "Check your registered WhatsApp number for the code."),
       );
     } catch (e) {
       setError(
         e instanceof ApiError && e.status === 409
-          ? "This number is linked to more than one account. Sign in with your registered email and password."
+          ? "This number is linked to more than one account. Sign in with your registered email or username and password."
           : e instanceof Error
             ? e.message
             : "Code request failed.",

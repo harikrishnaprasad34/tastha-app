@@ -41,15 +41,24 @@ export function Login({ navigate }: { navigate: Navigate }) {
     >
       <Text style={s.title}>Welcome to Tastha</Text>
       <Text style={s.muted}>
-        Sign in using the registered email for your existing Tastha account.
+        Sign in with your registered email or username and password.
       </Text>
       <Formik
         initialValues={{ identifier: "", password: "" }}
         validationSchema={Yup.object({
           identifier: Yup.string()
             .trim()
-            .email("Enter a valid registered email address")
-            .required("Enter your email address"),
+            .test(
+              "identity",
+              "Enter your registered email or username",
+              (value) =>
+                Boolean(
+                  value &&
+                  (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ||
+                    /^[a-z][a-z0-9_]{2,29}$/i.test(value)),
+                ),
+            )
+            .required("Enter your email or username"),
           password: Yup.string().required("Enter your password"),
         })}
         onSubmit={async (values) => {
@@ -79,7 +88,7 @@ export function Login({ navigate }: { navigate: Navigate }) {
         }) => (
           <View style={{ gap: 16 }}>
             <Field
-              label="Email address"
+              label="Email or username"
               value={values.identifier}
               onChangeText={handleChange("identifier")}
               onBlur={handleBlur("identifier")}

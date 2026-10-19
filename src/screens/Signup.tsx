@@ -9,6 +9,13 @@ import type { Navigate } from "./Shop";
 import { Button, ErrorBox, Field, styles as s } from "../components/ui";
 
 const schema = Yup.object({
+  username: Yup.string()
+    .trim()
+    .matches(
+      /^[a-z][a-z0-9_]{2,29}$/i,
+      "Use 3–30 characters, starting with a letter",
+    )
+    .required("Choose a username"),
   fullName: Yup.string().trim().min(2).max(50).required("Enter your full name"),
   email: Yup.string()
     .trim()
@@ -41,6 +48,7 @@ export function Signup({ navigate }: { navigate: Navigate }) {
       </Text>
       <Formik
         initialValues={{
+          username: "",
           fullName: "",
           email: "",
           phone: "",
@@ -85,6 +93,20 @@ export function Signup({ navigate }: { navigate: Navigate }) {
               onBlur={handleBlur("fullName")}
               error={touched.fullName ? errors.fullName : undefined}
             />
+            <Field
+              label="Username"
+              placeholder="e.g. tastha_style"
+              value={values.username}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="username-new"
+              onChangeText={handleChange("username")}
+              onBlur={handleBlur("username")}
+              error={touched.username ? errors.username : undefined}
+            />
+            <Text style={s.small}>
+              3–30 letters, numbers or underscores. Start with a letter.
+            </Text>
             <Field
               label="Email address"
               value={values.email}
