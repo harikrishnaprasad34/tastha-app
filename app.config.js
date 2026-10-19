@@ -1,13 +1,25 @@
-const { expo } = require("./app.json");
 const androidGoogleMapsApiKey = process.env.ANDROID_GOOGLE_MAPS_API_KEY;
-module.exports = {
-  ...expo,
+module.exports = ({ config }) => ({
+  ...config,
   extra: {
-    ...expo.extra,
+    ...config.extra,
     androidMapsConfigured: Boolean(androidGoogleMapsApiKey),
   },
   plugins: [
-    ...expo.plugins,
+    ...(config.plugins || []),
+    [
+      "expo-build-properties",
+      {
+        android: {
+          // WorkManager initializes Room before Application.onCreate. Its
+          // generated database is loaded reflectively and must survive R8.
+          extraProguardRules:
+            "-keep class androidx.work.impl.WorkDatabase { *; }\n" +
+            "-keep class androidx.work.impl.WorkDatabase_Impl { *; }\n" +
+            "-keep class * extends androidx.room.RoomDatabase { *; }\n",
+        },
+      },
+    ],
     "expo-sharing",
     [
       "expo-image-picker",
@@ -23,4 +35,4 @@ module.exports = {
       ...(androidGoogleMapsApiKey ? [{ androidGoogleMapsApiKey }] : [{}]),
     ],
   ],
-};
+});
