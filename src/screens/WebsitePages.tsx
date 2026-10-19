@@ -1,3 +1,4 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useState } from "react";
 import { ScrollView, Text, View, Pressable } from "react-native";
 import { Link } from "expo-router";
@@ -68,8 +69,27 @@ export function WebsitePages() {
                     },
                   ]}
                 >
+                  <Ionicons
+                    name={
+                      group === "Administration"
+                        ? "grid-outline"
+                        : group === "Help"
+                          ? "help-circle-outline"
+                          : group === "Account"
+                            ? "person-outline"
+                            : group === "Style studio"
+                              ? "sparkles-outline"
+                              : "bag-outline"
+                    }
+                    size={20}
+                    color={colors.gold}
+                  />
                   <Text style={[s.text, { flex: 1 }]}>{page.title}</Text>
-                  <Text style={{ color: colors.gold }}>→</Text>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={17}
+                    color={colors.muted}
+                  />
                 </Pressable>
               </Link>
             ))}

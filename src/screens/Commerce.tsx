@@ -1,6 +1,8 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { colors, API_ORIGIN } from "../config";
 import { useRevalidateOnFocus } from "../hooks/useRevalidateOnFocus";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, Text, View, Pressable, Alert } from "react-native";
+import { ScrollView, Text, View, Pressable, Alert, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { shareInvoice } from "../api/invoice";
 import { api, session } from "../api/runtime";
@@ -25,7 +27,7 @@ import {
   changeWishlist,
 } from "../state/store";
 import type { Quote, PaymentMethod, Order } from "../models";
-import { linePayload, money } from "../shared/catalog";
+import { linePayload, money, productImages } from "../shared/catalog";
 import { isValidCheckoutQuote } from "../shared/checkoutQuote";
 import {
   filterCustomerOrders,
@@ -84,8 +86,30 @@ export function Bag({ navigate }: { navigate: Navigate }) {
           <Pressable
             accessibilityRole="button"
             onPress={() => navigate("Product", line.product._id)}
+            style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
           >
-            <Text style={s.heading}>{line.product.name}</Text>
+            {productImages(line.product, API_ORIGIN)[0] ? (
+              <Image
+                source={{ uri: productImages(line.product, API_ORIGIN)[0] }}
+                style={{
+                  width: 72,
+                  height: 88,
+                  borderRadius: 10,
+                  backgroundColor: colors.elevated,
+                }}
+                resizeMode="contain"
+                accessibilityLabel={line.product.name}
+              />
+            ) : (
+              <Ionicons name="shirt-outline" size={40} color={colors.gold} />
+            )}
+            <View style={{ flex: 1, gap: 5 }}>
+              <Text numberOfLines={3} style={[s.text, { fontWeight: "600" }]}>
+                {line.product.name}
+              </Text>
+              <Text style={s.small}>View product details</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.muted} />
           </Pressable>
           <Text style={s.muted}>
             {[line.selectedColor, line.selectedSize]
@@ -143,7 +167,15 @@ export function Bag({ navigate }: { navigate: Navigate }) {
           </View>
         </View>
       ))}
-      {bag && !bag.items.length ? <Empty title="Your bag is empty" /> : null}
+      {bag && !bag.items.length ? (
+        <>
+          <Empty
+            title="Your bag is waiting"
+            detail="Find something you love and add it here."
+          />
+          <Button title="Explore styles" onPress={() => navigate("Shop")} />
+        </>
+      ) : null}
       <ErrorBox message={error} />
       {bag?.items.length ? (
         <>

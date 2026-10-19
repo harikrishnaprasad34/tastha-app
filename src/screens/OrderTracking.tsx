@@ -1,3 +1,5 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { colors } from "../config";
 import { useRevalidateOnFocus } from "../hooks/useRevalidateOnFocus";
 import React, { useCallback, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
@@ -111,9 +113,14 @@ export function OrderTracking({
                       : ", pending")
                 }
               >
-                <Text style={s.text}>
-                  {step.reached ? "✓" : "○"} {step.title}
-                </Text>
+                <View style={s.row}>
+                  <Ionicons
+                    name={step.reached ? "checkmark-circle" : "ellipse-outline"}
+                    size={22}
+                    color={step.reached ? colors.gold : colors.muted}
+                  />
+                  <Text style={s.text}>{step.title}</Text>
+                </View>
                 {step.current ? (
                   <Text style={s.muted}>Latest recorded stage</Text>
                 ) : null}

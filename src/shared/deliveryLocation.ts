@@ -12,6 +12,14 @@ export interface NativePlace {
   formattedAddress?: string | null;
 }
 export interface ServerPlace {
+  building?: string;
+  placeName?: string;
+  houseNumber?: string;
+  road?: string;
+  neighbourhood?: string;
+  suburb?: string;
+  district?: string;
+  compactLocation?: string;
   formattedAddress?: string;
   postalCode?: string;
   pinCode?: string;
@@ -24,6 +32,18 @@ export interface ServerPlace {
 export const validPinCode = (value: unknown): value is string =>
   typeof value === "string" && /^[1-9]\d{5}$/.test(value);
 
+const uniqueParts = (values: (string | null | undefined)[]) => {
+  const seen = new Set<string>();
+  return values
+    .map((value) => trimmed(value))
+    .filter((value) => {
+      const key = value.toLowerCase();
+      if (!value || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+};
+
 const trimmed = (value: string | null | undefined) =>
   typeof value === "string" ? value.trim() : "";
 
@@ -31,29 +51,53 @@ export function describeDetectedPlace(
   native: NativePlace | null,
   server: ServerPlace | null,
 ): { label: string; pinCode: string } {
-  const street = [trimmed(native?.streetNumber), trimmed(native?.street)]
-    .filter(Boolean)
-    .join(" ");
-  const locality = trimmed(native?.district) || trimmed(native?.subregion);
-  const city = trimmed(native?.city) || trimmed(native?.region);
-  const detailed = [street || trimmed(native?.name), locality, city]
-    .filter((part, index, parts) => part && parts.indexOf(part) === index)
-    .join(", ");
-  // The backend's geocoding fallback uses a generic "Pinpoint Location"
-  // label and a fixed example PIN. Never accept it as a genuine delivery PIN.
-  const placeholder = /^(?:pinpoint location|selected location)/i.test(
-    trimmed(server?.displayAddress) ||
-      trimmed(server?.formattedAddress) ||
-      trimmed(server?.address),
-  );
+  // Only use names actually supplied by the geocoder. A nearby POI is not
+  // proof of a building; the customer must confirm the suggested address.
+  const placeholder =
+    /^(?:pinpoint location|selected location|selected map pin)/i.test(
+      trimmed(server?.displayAddress) ||
+        trimmed(server?.formattedAddress) ||
+        trimmed(server?.address),
+    );
   const trustworthyServer = placeholder ? null : server;
-  const serverLabel =
+  const street =
+    uniqueParts([native?.streetNumber, native?.street]).join(" ") ||
+    uniqueParts([trustworthyServer?.houseNumber, trustworthyServer?.road]).join(
+      " ",
+    );
+  const nativeName = trimmed(native?.name);
+  const building =
+    trimmed(trustworthyServer?.building) ||
+    (nativeName &&
+    ![
+      native?.street,
+      native?.city,
+      native?.region,
+      native?.district,
+      native?.subregion,
+      native?.postalCode,
+      native?.streetNumber,
+      street,
+    ].some(
+      (part) => trimmed(part).toLowerCase() === nativeName.toLowerCase(),
+    ) &&
+    !/^[\d\s.,-]+$/.test(nativeName)
+      ? nativeName
+      : "");
+  const detailed = uniqueParts([
+    building,
+    street,
+    native?.district ||
+      trustworthyServer?.neighbourhood ||
+      trustworthyServer?.suburb ||
+      native?.subregion,
+    native?.city || trustworthyServer?.city || native?.region,
+  ]).join(", ");
+  const label =
+    detailed ||
     trimmed(trustworthyServer?.displayAddress) ||
     trimmed(trustworthyServer?.formattedAddress) ||
     trimmed(trustworthyServer?.address) ||
-    trimmed(trustworthyServer?.city);
-  const label =
-    (street ? detailed : serverLabel || detailed) ||
     trimmed(native?.formattedAddress);
   const pinCode =
     [
@@ -67,7 +111,7 @@ export function describeDetectedPlace(
 }
 
 export function locationFromAddress(address: Address): DeliveryLocation {
-  const label = [address.streetAddress, address.apartment, address.city]
+  const label = [address.apartment, address.streetAddress, address.city]
     .map((part) => trimmed(part))
     .filter(Boolean)
     .join(", ");
@@ -128,7 +172,7 @@ export function parseSavedLocation(
 }
 
 /** A suggestion is offered to the customer for review, never auto-confirmed. */
-export interface SearchedPlace {
+export interface SearchedPlace extends ServerPlace {
   placeId?: string;
   placeName?: string;
   formattedAddress?: string;
@@ -147,7 +191,14 @@ export function locationFromSearchResult(
   place: SearchedPlace,
 ): DeliveryLocation | null {
   if (!place || typeof place !== "object") return null;
+  const structured = uniqueParts([
+    place.building || place.placeName,
+    place.road,
+    place.neighbourhood || place.suburb,
+    place.city,
+  ]).join(", ");
   const label =
+    structured ||
     trimmed(place.displayAddress) ||
     trimmed(place.formattedAddress) ||
     trimmed(place.compactLocation) ||
@@ -197,4 +248,26 @@ export function restoreDeliveryForAccount(
   )
     return publicLocationAfterSignOut(location);
   return location;
+}
+
+/** Compact two-line header; preserve the complete address for confirmation. */
+export function deliveryHeader(location: DeliveryLocation | null) {
+  if (!location)
+    return {
+      title: "Choose delivery location",
+      subtitle: "Set your area for available styles",
+    };
+  const parts = uniqueParts(location.label.split(","));
+  return {
+    title: parts[0] || "Delivery location",
+    subtitle:
+      uniqueParts([
+        ...parts
+          .slice(1, 3)
+          .filter(
+            (part) => !/^(?:India|Telangana|Andhra Pradesh)$/i.test(part),
+          ),
+        location.pinCode,
+      ]).join(" · ") || "Tap to change delivery location",
+  };
 }

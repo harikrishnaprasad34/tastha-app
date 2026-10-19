@@ -3,6 +3,8 @@ set -euo pipefail
 
 mkdir -p startup-results
 adb install -r "${1:?APK path required}"
+adb shell pm grant com.tastha.app android.permission.ACCESS_FINE_LOCATION
+adb shell pm grant com.tastha.app android.permission.ACCESS_COARSE_LOCATION
 adb logcat -c
 capture() {
   adb logcat -d > startup-results/logcat.txt || true
@@ -19,6 +21,7 @@ check_screen() {
   adb shell pidof com.tastha.app
   adb shell uiautomator dump /sdcard/window.xml
   adb pull /sdcard/window.xml "startup-results/${label}.xml"
+  adb exec-out screencap -p > "startup-results/${label}.png"
   # A live native process alone does not prove React rendered the storefront.
   grep -Eq 'Delivery location|Use your current location|TASTHA' "startup-results/${label}.xml"
 }
@@ -29,6 +32,22 @@ sleep 3
 check_screen resume
 adb shell am force-stop com.tastha.app
 check_screen restart
+
+# Visit public native shopping surfaces and capture actual release rendering.
+# These checks do not create orders, sign in, or manufacture catalog content.
+for route in shop wishlist bag account search; do
+  adb shell am start -W -a android.intent.action.VIEW -d "tastha:///$route" com.tastha.app
+  sleep 8
+  adb shell uiautomator dump /sdcard/window.xml >/dev/null
+  adb pull /sdcard/window.xml "startup-results/native-${route}.xml" >/dev/null
+  adb exec-out screencap -p > "startup-results/native-${route}.png"
+done
+adb shell am start -W -a android.intent.action.VIEW -d 'tastha:///' com.tastha.app
+sleep 15
+adb shell uiautomator dump /sdcard/window.xml >/dev/null
+adb pull /sdcard/window.xml startup-results/native-home.xml >/dev/null
+adb exec-out screencap -p > startup-results/native-home.png
+grep -q 'Shop by category\|Finding your next favourite\|Retry' startup-results/native-home.xml
 
 # Exercise the new native page directory and the real, unauthenticated admin
 # website. No credentials or admin mutations are used in this acceptance check.
