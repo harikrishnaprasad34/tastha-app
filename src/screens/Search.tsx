@@ -1,3 +1,5 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { colors } from "../config";
 import React, { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { api } from "../api/runtime";
@@ -143,7 +145,7 @@ function SearchForIdentity({
       <Text style={s.title}>Find your Tastha look</Text>
       <Field
         label="Search products and categories"
-        placeholder="Shirts, sneakers, occasion…"
+        placeholder="Search by product name or category"
         value={query}
         onChangeText={update}
         autoFocus
@@ -156,16 +158,40 @@ function SearchForIdentity({
       {terms.length ? (
         <View style={s.panel}>
           <Text style={s.heading}>Suggested searches</Text>
-          {terms.map((term) => (
-            <Pressable
-              key={term}
-              accessibilityRole="button"
-              style={s.pill}
-              onPress={() => update(term)}
-            >
-              <Text style={s.text}>{term}</Text>
-            </Pressable>
-          ))}
+          <View style={[s.row, { gap: 8 }]}>
+            {terms.map((term) => (
+              <Pressable
+                key={term}
+                accessibilityRole="button"
+                style={[
+                  s.pill,
+                  { flexDirection: "row", gap: 8, alignItems: "center" },
+                ]}
+                onPress={() => update(term)}
+              >
+                <Ionicons
+                  name="search-outline"
+                  size={16}
+                  color={colors.muted}
+                />
+                <Text style={s.text}>{term}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      ) : null}
+      {query.trim().length < 2 ? (
+        <View style={[s.panel, { gap: 10 }]}>
+          <Ionicons name="grid-outline" size={28} color={colors.gold} />
+          <Text style={s.heading}>Discover your next favourite</Text>
+          <Text style={s.muted}>
+            Browse the collection or search for a product by name.
+          </Text>
+          <Button
+            title="Explore all products"
+            outline
+            onPress={() => navigate("Shop")}
+          />
         </View>
       ) : null}
       {busy ? <Loading /> : null}

@@ -1,6 +1,7 @@
 import { it, expect, vi } from "vitest";
 import { Search } from "../src/screens/Search";
 import { PaymentStatus } from "../src/screens/PaymentStatus";
+vi.mock("@expo/vector-icons/Ionicons", () => ({ default: "Ionicons" }));
 const state = vi.hoisted(() => ({
   auth: { user: { id: "alice" } as { id: string } | null },
   location: { pinCode: "500034" },

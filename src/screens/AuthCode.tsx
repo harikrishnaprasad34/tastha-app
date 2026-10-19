@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
+import { ApiError } from "../api/client";
 import { api, session } from "../api/runtime";
 import type { Session } from "../models";
 import { Button, ErrorBox, Field, styles as s } from "../components/ui";
@@ -50,6 +51,13 @@ export function AuthCode({
       });
       if (recovery && !result.challenge)
         throw Error("Recovery could not be started.");
+      if (!recovery && result.whatsappDelivered === false) {
+        setRequested("");
+        setError(
+          "The WhatsApp code could not be delivered. Retry later or use email and password.",
+        );
+        return;
+      }
       setRequested(value);
       setChallenge(result.challenge || "");
       setOtp("");
@@ -60,7 +68,13 @@ export function AuthCode({
               "Check your registered WhatsApp number for the code.",
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Code request failed.");
+      setError(
+        e instanceof ApiError && e.status === 409
+          ? "This number is linked to more than one account. Sign in with your registered email and password."
+          : e instanceof Error
+            ? e.message
+            : "Code request failed.",
+      );
     } finally {
       setBusy(false);
     }
@@ -114,11 +128,17 @@ export function AuthCode({
       <Text style={s.title}>
         {recovery ? "Reset password" : "Sign in with WhatsApp"}
       </Text>
+      <Text style={s.muted}>
+        {recovery
+          ? "Enter your registered email to start password recovery."
+          : "We’ll send a six-digit code to your registered WhatsApp number. You can also sign in with your email and password."}
+      </Text>
       <Field
         label={recovery ? "Registered email address" : "Mobile number"}
         value={identifier}
         onChangeText={(value) => {
           setIdentifier(value);
+          setError("");
           setRequested("");
           setChallenge("");
           setOtp("");
