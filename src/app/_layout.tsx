@@ -29,6 +29,8 @@ export default function Root() {
                 headerBackButtonDisplayMode: "minimal",
               }}
             >
+              <Stack.Screen name="website/index" options={{ title: "Explore Tastha" }} />
+              <Stack.Screen name="website/[page]" options={{ title: "Tastha workspace" }} />
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen
                 name="product/[id]"
