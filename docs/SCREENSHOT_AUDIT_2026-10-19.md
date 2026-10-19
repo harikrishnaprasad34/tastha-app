@@ -24,7 +24,7 @@ Target: tastha-app/main.
 
 ## Verification and limits
 
-TypeScript, lint and 171 tests pass. Android Hermes export and Android prebuild
+TypeScript, lint and 173 tests pass. Android Hermes export and Android prebuild
 pass. These checks do not certify rendered device behavior or successful payments.
 The public /payment/methods endpoint responded with UPI, CARD, NET_BANKING and COD
 enabled on this run. No authenticated quote, order, charge or refund was submitted.
@@ -63,3 +63,10 @@ therefore blocked this case. It now matches the backend only for the explicit
 UNCONFIGURED response; unknown coverage stays null and is displayed as unconfirmed.
 No merchant coverage settings were changed. Tests cover unconfigured, explicit
 nonserviceability, invalid configuration and malformed/missing configuration.
+
+## Native SDK capability detection
+
+The installed Razorpay 3.0.0 package resolves RNRazorpayCheckout through
+TurboModuleRegistry on the new architecture. Native capability detection now
+uses that registry (which includes legacy fallback) instead of only NativeModules.
+Tests cover a present SDK and an absent SDK. This does not assert gateway success.

@@ -1,11 +1,11 @@
-import { NativeModules } from "react-native";
+import { TurboModuleRegistry } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";
 import { api, session } from "./runtime";
 import { createCheckout, type Attempt, type PaymentProof } from "./checkout";
 const key = () => "tastha.checkout." + (session.get()?.user.id || "signed-out");
 export const hasNativePayments = () =>
-  Boolean(NativeModules.RNRazorpayCheckout);
+  Boolean(TurboModuleRegistry.get("RNRazorpayCheckout"));
 export function checkoutForCurrentSession() {
   const accountKey = key();
   return createCheckout(
