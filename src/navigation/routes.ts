@@ -1,6 +1,7 @@
 import { catalogQueryKeys } from "../shared/catalogFilters";
 const routes: Record<string, string> = {
   Contact: "/contact",
+  Collections: "/collections",
   Security: "/security",
   SavedLooks: "/saved-looks",
   Otp: "/otp",
@@ -23,6 +24,10 @@ const routes: Record<string, string> = {
   Search: "/search",
 };
 export function routeFor(name: string, id?: string) {
+  if (name === "Collection") {
+    if (!id?.trim()) throw Error("Choose a collection.");
+    return "/collection/" + encodeURIComponent(id);
+  }
   if (name === "Review" && id) return "/review?" + id;
   if (name === "PaymentStatus")
     return "/payment-status" + (id ? "?id=" + encodeURIComponent(id) : "");
@@ -62,11 +67,7 @@ export function storeLink(value?: string): string {
     return "/(tabs)/shop";
   const [path, query] = value.split("?");
   const q = new URLSearchParams(query);
-  if (
-    ["/shop", "/products", "/offers", "/collections", "/categories"].includes(
-      path,
-    )
-  ) {
+  if (["/shop", "/products", "/offers", "/categories"].includes(path)) {
     const allowed = new URLSearchParams();
     for (const key of catalogQueryKeys)
       if (q.has(key)) allowed.set(key, q.get(key)!);
@@ -83,8 +84,12 @@ export function storeLink(value?: string): string {
   const product = path.match(/^\/product[s]?\/([^/]+)$/);
   if (product && decode(product[1]))
     return "/product/" + encodeURIComponent(decode(product[1]));
+  if (path === "/collections") return "/collections";
+  const collection = path.match(/^\/collections\/([^/]+)$/);
+  if (collection && decode(collection[1]))
+    return "/collection/" + encodeURIComponent(decode(collection[1]));
   const category = path.match(
-    /^\/(?:shop\/category|category|categories|collections)\/([^/]+)$/,
+    /^\/(?:shop\/category|category|categories)\/([^/]+)$/,
   );
   if (category && decode(category[1]))
     return "/(tabs)/shop?category=" + encodeURIComponent(decode(category[1]));

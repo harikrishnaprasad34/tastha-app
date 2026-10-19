@@ -1,27 +1,41 @@
 name: Android installed APK startup check
 on:
-  push:
-    paths: [.github/workflows/android-startup.yml]
+  workflow_run:
+    workflows: [Android verification and test APK]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       artifact_id:
-        description: APK artifact to verify
-        default: "12144395080"
-        required: true
+        description: APK artifact ID (leave blank for the latest successful build)
+        default: ""
+        required: false
 permissions:
   contents: read
   actions: read
 jobs:
   startup:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Download APK under investigation
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: Download APK from the successful build
         env:
           GH_TOKEN: ${{ github.token }}
-          ARTIFACT_ID: ${{ inputs.artifact_id || '12144395080' }}
+          ARTIFACT_ID: ${{ inputs.artifact_id }}
+          SOURCE_RUN: ${{ github.event.workflow_run.id }}
         run: |
+          set -euo pipefail
+          if [ -z "$ARTIFACT_ID" ]; then
+            if [ -z "$SOURCE_RUN" ]; then
+              SOURCE_RUN=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/android.yml/runs?branch=main&status=success&per_page=1" --jq '.workflow_runs[0].id')
+            fi
+            ARTIFACT_ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN/artifacts" --jq '.artifacts[] | select(.name == "tastha-android-development-apk" and .expired == false) | .id' | head -1)
+          fi
+          test -n "$ARTIFACT_ID"
           gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" > apk.zip
           unzip apk.zip -d apk
       - name: Enable emulator acceleration

@@ -29,6 +29,14 @@ export default function Root() {
                 headerBackButtonDisplayMode: "minimal",
               }}
             >
+              <Stack.Screen
+                name="collections"
+                options={{ title: "Collections" }}
+              />
+              <Stack.Screen
+                name="collection/[slug]"
+                options={{ title: "Tastha edit" }}
+              />
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen
                 name="product/[id]"

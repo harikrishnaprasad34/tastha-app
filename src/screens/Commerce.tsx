@@ -1,3 +1,4 @@
+import { Icon, type IconName } from "../components/Icon";
 import { useRevalidateOnFocus } from "../hooks/useRevalidateOnFocus";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, Text, View, Pressable, Alert } from "react-native";
@@ -753,10 +754,14 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
     [user?.id],
   );
   const fingerprint = JSON.stringify([user?.id, bag, address]);
-  useEffect(() => {
-    dispatch(fetchBag());
-    dispatch(fetchAddresses());
-  }, [dispatch]);
+  useRevalidateOnFocus(
+    useCallback(() => {
+      if (paying) return;
+      dispatch(fetchBag());
+      dispatch(fetchAddresses());
+      setRefresh((value) => value + 1);
+    }, [dispatch, paying, setRefresh]),
+  );
   useEffect(() => {
     const controller = new AbortController();
     setOptionsReady(false);
@@ -977,8 +982,23 @@ export function Checkout({ navigate }: { navigate: Navigate }) {
               ]}
             >
               <View style={[s.row, { justifyContent: "space-between" }]}>
-                <Text style={s.heading}>{option.name || code}</Text>
-                <Text style={s.price}>{method === code ? "●" : "○"}</Text>
+                <Icon
+                  name={
+                    (
+                      {
+                        UPI: "upi",
+                        CARD: "card",
+                        NET_BANKING: "bank",
+                        WALLET: "bag",
+                        COD: "bag",
+                      } as Record<string, IconName>
+                    )[code]
+                  }
+                />
+                <Text style={[s.text, { flex: 1, fontWeight: "600" }]}>
+                  {option.name || code}
+                </Text>
+                <Icon name={method === code ? "check" : "circle"} size={22} />
               </View>
               {!available ? (
                 <Text style={s.muted}>

@@ -395,10 +395,37 @@ describe("checkout security", () => {
     await expect(checkout.pay(input)).rejects.toThrow("amount");
     expect(gateway).not.toHaveBeenCalled();
   });
+  it("rejects a completed verification for a different merchant order", async () => {
+    const request = vi.fn(async (path: string) =>
+      path.endsWith("/verify")
+        ? { order: { orderNumber: "different", paymentStatus: "COMPLETED" } }
+        : gatewayOrder,
+    );
+    const { checkout, getAttempt } = setup(request);
+    await expect(checkout.pay(input)).rejects.toThrow("does not match");
+    expect(getAttempt()?.merchantOrderId).toBe("merchant1");
+  });
+  it("does not accept another completed order during retry recovery", async () => {
+    const request = vi.fn(async (path: string) =>
+      path.endsWith("/status")
+        ? {
+            resolution: "CONFIRMED",
+            order: { orderNumber: "different", paymentStatus: "COMPLETED" },
+          }
+        : gatewayOrder,
+    );
+    const { checkout, gateway, getAttempt } = setup(request);
+    gateway.mockRejectedValueOnce(Error("closed"));
+    await expect(checkout.pay(input)).rejects.toThrow("closed");
+    await expect(checkout.pay(input)).rejects.toThrow(
+      "earlier payment attempt",
+    );
+    expect(getAttempt()?.merchantOrderId).toBe("merchant1");
+  });
   it("never treats an unverified payment as paid", async () => {
     const request = vi.fn(async (path: string) =>
       path.endsWith("/verify")
-        ? { order: { orderNumber: "T1", paymentStatus: "PENDING" } }
+        ? { order: { orderNumber: "merchant1", paymentStatus: "PENDING" } }
         : gatewayOrder,
     );
     const { checkout, getAttempt } = setup(request);
@@ -447,7 +474,7 @@ describe("checkout security", () => {
       path.endsWith("/status")
         ? { resolution: "FAILED", canRetry: true, razorpayOrderId: "order1" }
         : path.endsWith("/verify")
-          ? { order: { orderNumber: "T1", paymentStatus: "COMPLETED" } }
+          ? { order: { orderNumber: "merchant1", paymentStatus: "COMPLETED" } }
           : gatewayOrder,
     );
     const { checkout, gateway } = setup(request);

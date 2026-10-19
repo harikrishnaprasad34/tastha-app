@@ -1,3 +1,4 @@
+import { Icon } from "../../components/Icon";
 import {
   Tabs,
   BottomTabBar,
@@ -112,7 +113,10 @@ export default function TabLayout() {
             accessibilityLabel="Search products"
             style={[s.pill, { minHeight: 44, justifyContent: "center" }]}
           >
-            <Text style={s.muted}>⌕ Search products and collections</Text>
+            <View style={[s.row, { gap: 8 }]}>
+              <Icon name="search" size={20} color={colors.muted} />
+              <Text style={s.muted}>Search products and collections</Text>
+            </View>
           </Pressable>
         </Link>
       </SafeAreaView>
@@ -133,14 +137,18 @@ export default function TabLayout() {
           name="index"
           options={{
             title: "Home",
-            tabBarIcon: () => <Text style={s.text}>⌂</Text>,
+            tabBarIcon: ({ color, size }) => (
+              <Icon name="home" color={color} size={size} />
+            ),
           }}
         />
         <Tabs.Screen
           name="shop"
           options={{
             title: "Shop",
-            tabBarIcon: () => <Text style={s.text}>◇</Text>,
+            tabBarIcon: ({ color, size }) => (
+              <Icon name="shop" color={color} size={size} />
+            ),
           }}
         />
         <Tabs.Screen
@@ -148,7 +156,9 @@ export default function TabLayout() {
           options={{
             title: "Wishlist",
             tabBarBadge: userId && wishCount ? wishCount : undefined,
-            tabBarIcon: () => <Text style={s.text}>♡</Text>,
+            tabBarIcon: ({ color, size }) => (
+              <Icon name="heart" color={color} size={size} />
+            ),
           }}
         />
         <Tabs.Screen
@@ -156,14 +166,18 @@ export default function TabLayout() {
           options={{
             title: "Bag",
             tabBarBadge: userId && bagCount ? bagCount : undefined,
-            tabBarIcon: () => <Text style={s.text}>▢</Text>,
+            tabBarIcon: ({ color, size }) => (
+              <Icon name="bag" color={color} size={size} />
+            ),
           }}
         />
         <Tabs.Screen
           name="account"
           options={{
             title: "Account",
-            tabBarIcon: () => <Text style={s.text}>○</Text>,
+            tabBarIcon: ({ color, size }) => (
+              <Icon name="person" color={color} size={size} />
+            ),
           }}
         />
       </Tabs>

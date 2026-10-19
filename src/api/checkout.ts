@@ -64,6 +64,10 @@ export function createCheckout(
     );
     if (sessionIsCurrent?.() === false)
       throw Error("Your shopping session changed.");
+    if (result.order && result.order.orderNumber !== attempt.merchantOrderId)
+      throw Error(
+        "Payment status refers to a different order. Your saved attempt was kept.",
+      );
     if (
       (result.resolution === "CONFIRMED" &&
         result.order?.orderNumber &&
@@ -159,7 +163,7 @@ export function createCheckout(
           active();
           if (
             r.resolution === "CONFIRMED" &&
-            r.order?.orderNumber &&
+            r.order?.orderNumber === attempt.merchantOrderId &&
             r.order.paymentStatus === "COMPLETED"
           ) {
             await storage.clear();
@@ -227,6 +231,13 @@ export function createCheckout(
           { method: "POST", auth: "required", body: proof, timeout: 45000 },
         );
         active();
+        if (
+          verified.order?.orderNumber &&
+          verified.order.orderNumber !== order.merchantOrderId
+        )
+          throw Error(
+            "Payment confirmation does not match this order. Check your orders before retrying.",
+          );
         if (
           !verified.order?.orderNumber ||
           verified.order.paymentStatus !== "COMPLETED"

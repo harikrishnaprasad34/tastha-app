@@ -1,3 +1,4 @@
+import { collectionsSlice, type CollectionState } from "./collections";
 import {
   configureStore,
   createAsyncThunk,
@@ -55,6 +56,7 @@ interface Commerce {
   errors: Record<string, string | null>;
 }
 export interface AppState {
+  collections: CollectionState;
   publicSettings: {
     data: PublicStoreSettings | null;
     loading: boolean;
@@ -589,6 +591,7 @@ export function buildStore(extra: Extra) {
   const store = configureStore({
     reducer: {
       auth: auth.reducer,
+      collections: collectionsSlice.reducer,
       publicSettings: publicSettings.reducer,
       catalog: catalog.reducer,
       commerce: commerce.reducer,

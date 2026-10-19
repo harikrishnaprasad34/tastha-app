@@ -1,3 +1,4 @@
+import { confirmedCustomerOrder } from "../shared/paymentStatus";
 import React, { useEffect, useState } from "react";
 import { ScrollView, Text } from "react-native";
 import { api, session } from "../api/runtime";
@@ -80,12 +81,7 @@ function PaymentStatusForOrder({
       active = false;
     };
   }, [id, retry]);
-  const confirmed = Boolean(
-    order &&
-    (order.paymentStatus === "COMPLETED" ||
-      (order.paymentMethod === "COD" &&
-        !["CANCELLED", "RETURNED"].includes(order.orderStatus))),
-  );
+  const confirmed = confirmedCustomerOrder(order);
   return (
     <ScrollView contentContainerStyle={s.content}>
       <Text style={s.title}>

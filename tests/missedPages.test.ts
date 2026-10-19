@@ -15,7 +15,7 @@ describe("missed customer navigation paths",()=>{
  it("does not add an offers filter to ordinary shopping",()=>{
   expect(new URLSearchParams(storeLink("/shop").split("?")[1]).has("offersOnly")).toBe(false);
  });
- const screens=["Home","Shop","Wishlist","Bag","Account","EditProfile","Login","Signup","Addresses","AddressForm","Orders","Checkout","Location","AI","Search","Contact","Security","SavedLooks","Otp","Recovery","PaymentStatus"];
+ const screens=["Collections","Home","Shop","Wishlist","Bag","Account","EditProfile","Login","Signup","Addresses","AddressForm","Orders","Checkout","Location","AI","Search","Contact","Security","SavedLooks","Otp","Recovery","PaymentStatus"];
  it.each(screens)("links %s to an existing Expo screen",name=>{
   let path=routeFor(name).split("?")[0];
   if(path==="/(tabs)")path+="/index";

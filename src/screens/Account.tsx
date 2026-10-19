@@ -1,3 +1,4 @@
+import { Icon, type IconName } from "../components/Icon";
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useFocusEffect } from "expo-router";
 import { ScrollView, Text, View, Alert, Pressable } from "react-native";
@@ -254,43 +255,48 @@ export function Account({ navigate }: { navigate: Navigate }) {
           />
         </>
       )}
+      <Button
+        title="Explore collections"
+        outline
+        onPress={() => navigate("Collections")}
+      />
       <Text style={s.heading}>Preferences & support</Text>
       <View style={[s.panel, { padding: 0, gap: 0 }]}>
         {[
           {
             title: "Delivery location",
             detail: delivery?.label || "Choose your delivery area",
-            icon: "⌖",
+            icon: "location",
             action: () => navigate("Location"),
           },
           {
             title: "Contact us",
             detail: "Get help with your shopping",
-            icon: "☎",
+            icon: "contact",
             action: () => navigate("Contact"),
           },
           {
             title: "Help & FAQs",
             detail: "Answers to common questions",
-            icon: "?",
+            icon: "help",
             action: () => navigate("Help", "faq"),
           },
           {
             title: "Privacy policy",
             detail: "How your information is handled",
-            icon: "◇",
+            icon: "shield",
             action: () => navigate("Help", "privacy"),
           },
           {
             title: "Shipping & returns",
             detail: "Delivery and return information",
-            icon: "⇄",
+            icon: "returns",
             action: () => navigate("Help", "shipping"),
           },
           {
             title: "Style studio",
             detail: "Discover your next look",
-            icon: "✧",
+            icon: "sparkle",
             action: () => navigate("AI"),
           },
         ].map((item, index) => (
@@ -309,21 +315,14 @@ export function Account({ navigate }: { navigate: Navigate }) {
               opacity: pressed ? 0.7 : 1,
             })}
           >
-            <Text
-              style={[s.price, { width: 28, textAlign: "center" }]}
-              accessibilityElementsHidden
-            >
-              {item.icon}
-            </Text>
+            <Icon name={item.icon as IconName} />
             <View style={{ flex: 1, gap: 4 }}>
               <Text style={[s.text, { fontWeight: "600" }]}>{item.title}</Text>
               <Text style={s.small} numberOfLines={2}>
                 {item.detail}
               </Text>
             </View>
-            <Text style={s.muted} accessibilityElementsHidden>
-              ›
-            </Text>
+            <Icon name="chevron" color="#a9a9b0" size={20} />
           </Pressable>
         ))}
       </View>

@@ -47,9 +47,7 @@ describe("post-login destinations", () => {
     expect(storeLink("/shop?maxPrice=1500&sort=price_low&token=secret")).toBe(
       "/(tabs)/shop?sort=price_low&maxPrice=1500",
     );
-    expect(storeLink("/collections/shirts")).toBe(
-      "/(tabs)/shop?category=shirts",
-    );
+    expect(storeLink("/collections/shirts")).toBe("/collection/shirts");
     expect(storeLink("/product/p1")).toBe("/product/p1");
     expect(storeLink("/choose-occasion?occasion=wedding")).toBe(
       "/ai?occasion=wedding",
