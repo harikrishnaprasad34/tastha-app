@@ -423,6 +423,82 @@ export function Home({ navigate }: { navigate: Navigate }) {
               </View>
             </ScrollView>
           </View>
+          {home.delivery?.message ? (
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+            >
+              <Ionicons
+                name="information-circle-outline"
+                size={18}
+                color={colors.gold}
+              />
+              <Text style={[s.small, { flex: 1 }]}>
+                {home.delivery.message}
+              </Text>
+            </View>
+          ) : null}
+          {sections.map((section, index) => (
+            <View key={section.id || index} style={{ gap: 10 }}>
+              <View
+                style={[
+                  s.row,
+                  { justifyContent: "space-between", flexWrap: "nowrap" },
+                ]}
+              >
+                <View style={{ flex: 1, gap: 3 }}>
+                  <Text style={s.heading}>{section.title}</Text>
+                  <Text style={s.small}>
+                    {section.id === "deals"
+                      ? "Fresh finds. Real savings."
+                      : "Discover more of what you love"}
+                  </Text>
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={"Explore " + section.title}
+                  onPress={() =>
+                    navigate(
+                      "StoreLink",
+                      section.id === "newest" || section.id === "new"
+                        ? "/shop?sort=newest"
+                        : section.id === "deals"
+                          ? "/shop?offersOnly=true"
+                          : "/shop",
+                    )
+                  }
+                  style={{
+                    minHeight: 44,
+                    minWidth: 44,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    backgroundColor: colors.elevated,
+                    borderRadius: 22,
+                  }}
+                >
+                  <Ionicons
+                    name="arrow-forward"
+                    size={20}
+                    color={colors.gold}
+                  />
+                </Pressable>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "stretch",
+                    gap: 4,
+                  }}
+                >
+                  {section.products.map((product) => (
+                    <View key={product._id} style={{ width: 168 }}>
+                      <ProductCard product={product} navigate={navigate} />
+                    </View>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+          ))}
           <View
             style={{
               borderRadius: 20,
@@ -553,82 +629,6 @@ export function Home({ navigate }: { navigate: Navigate }) {
               </View>
             ) : null}
           </View>
-          {home.delivery?.message ? (
-            <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
-            >
-              <Ionicons
-                name="information-circle-outline"
-                size={18}
-                color={colors.gold}
-              />
-              <Text style={[s.small, { flex: 1 }]}>
-                {home.delivery.message}
-              </Text>
-            </View>
-          ) : null}
-          {sections.map((section, index) => (
-            <View key={section.id || index} style={{ gap: 10 }}>
-              <View
-                style={[
-                  s.row,
-                  { justifyContent: "space-between", flexWrap: "nowrap" },
-                ]}
-              >
-                <View style={{ flex: 1, gap: 3 }}>
-                  <Text style={s.heading}>{section.title}</Text>
-                  <Text style={s.small}>
-                    {section.id === "deals"
-                      ? "Fresh finds. Real savings."
-                      : "Discover more of what you love"}
-                  </Text>
-                </View>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={"Explore " + section.title}
-                  onPress={() =>
-                    navigate(
-                      "StoreLink",
-                      section.id === "newest" || section.id === "new"
-                        ? "/shop?sort=newest"
-                        : section.id === "deals"
-                          ? "/shop?offersOnly=true"
-                          : "/shop",
-                    )
-                  }
-                  style={{
-                    minHeight: 44,
-                    minWidth: 44,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    backgroundColor: colors.elevated,
-                    borderRadius: 22,
-                  }}
-                >
-                  <Ionicons
-                    name="arrow-forward"
-                    size={20}
-                    color={colors.gold}
-                  />
-                </Pressable>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "stretch",
-                    gap: 4,
-                  }}
-                >
-                  {section.products.map((product) => (
-                    <View key={product._id} style={{ width: 168 }}>
-                      <ProductCard product={product} navigate={navigate} />
-                    </View>
-                  ))}
-                </View>
-              </ScrollView>
-            </View>
-          ))}
           {!sections.length ? (
             <View style={s.panel}>
               <Ionicons
@@ -904,14 +904,20 @@ export function Catalog({
         </View>
       )}
       ListHeaderComponent={
-        <View style={s.content}>
-          <Text style={s.title}>The collection</Text>
+        <View
+          style={[
+            s.content,
+            { paddingHorizontal: 6, paddingTop: 8, paddingBottom: 12, gap: 10 },
+          ]}
+        >
+          <Text style={[s.title, { fontSize: 22 }]}>The collection</Text>
           <Field
             label="Search products"
+            placeholder="Find shirts, trousers & more"
             value={filter.search}
             onChangeText={(search) => setFilter({ ...filter, search })}
           />
-          <Text style={s.heading}>Browse by category</Text>
+          <Text style={s.muted}>Browse by category</Text>
           <View style={s.row}>
             <Pressable
               accessibilityRole="button"

@@ -1,0 +1,78 @@
+name: Android layout iteration APK
+on:
+  push:
+    paths: [.github/workflows/android-layout.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  layout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+      - name: Require unchanged native inputs from verified base
+        run: |
+          git diff --exit-code bfa624e611887317d2fd5f4b5cdf6c61f66107f3 HEAD -- package.json package-lock.json app.json app.config.js assets android ios
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - name: Download verified native base
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/artifacts/12170007127 --jq .workflow_run.head_sha)" = bfa624e611887317d2fd5f4b5cdf6c61f66107f3
+          gh api repos/$GITHUB_REPOSITORY/actions/artifacts/12170007127/zip > native-base.zip
+          echo '3731ade2b09ac14141a764477b9acb933cd2451864577e99844a6288196b0d82  native-base.zip' | sha256sum --check
+          unzip native-base.zip -d native-base
+      - name: Generate matching Hermes layout bundle
+        run: EXPO_OFFLINE=1 npx expo export:embed --platform android --entry-file index.ts --dev false --minify false --bytecode --bundle-output ui-bundle/index.android.bundle --assets-dest ui-bundle/res
+      - name: Generate development signing key and replace only JavaScript
+        run: |
+          EXPO_OFFLINE=1 npx expo prebuild --platform android --no-install
+          python3 scripts/repackage-layout.py native-base/app-release.apk ui-bundle/index.android.bundle unsigned.apk ui-bundle/res
+          sdkmanager 'build-tools;36.0.0'
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -P 16 -f 4 unsigned.apk aligned.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" sign --ks android/app/debug.keystore --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android --out Tastha-Redesigned.apk aligned.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs native-base/app-release.apk > base-certificate.txt
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs Tastha-Redesigned.apk > layout-certificate.txt
+          diff <(grep 'Signer #1 certificate SHA-256 digest:' base-certificate.txt) <(grep 'Signer #1 certificate SHA-256 digest:' layout-certificate.txt)
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 4 Tastha-Redesigned.apk
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Verify installed layout APK and capture screens
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 31
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: bash scripts/android-startup.sh Tastha-Redesigned.apk
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-layout-results
+          path: startup-results/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tastha-layout-apk
+          path: Tastha-Redesigned.apk
+          if-no-files-found: error

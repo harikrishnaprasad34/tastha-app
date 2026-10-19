@@ -29,3 +29,9 @@ The location API supplies `building`, `road`, `houseNumber`, `neighbourhood` and
 - Authenticated order/checkout/admin mutations are not exercised without an authorized test account. Existing tests cover their data and security logic; no production orders or payments are made for visual testing.
 - The live API reported delivery availability as unconfigured during this audit. The app displays that status and does not bypass checkout eligibility.
 - Embedded website/admin pages are not a native redesign; their content remains controlled by `tastha_official` deployments.
+
+## JavaScript-only layout iteration
+
+The first release screenshots exposed cramped tab labels and a campaign that still pushed product cards below the initial viewport. The final layout reserves 64 points plus the safe-area inset for tabs, reduces catalog header spacing, and places live product rails before campaigns.
+
+`android-layout.yml` can build this development APK from the verified native base at commit `bfa624e611887317d2fd5f4b5cdf6c61f66107f3` (artifact 12170007127). It requires unchanged dependencies, native configuration and assets, checks the immutable archive digest and Hermes bytecode version, rejects new native resources, verifies every native/resource file is identical, aligns the APK and verifies the same development signing certificate. The result must pass installed Android launch/resume/restart and page captures before upload. This path is for JavaScript-only layout iteration; normal Android/iOS workflows still perform complete native builds.

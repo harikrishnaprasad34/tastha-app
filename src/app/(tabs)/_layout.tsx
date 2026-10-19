@@ -9,7 +9,10 @@ import { money } from "../../shared/catalog";
 import React, { useEffect, useRef } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Link, useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { useAppDispatch, useAppSelector } from "../../state";
 import { fetchBag, fetchWishlist } from "../../state/store";
 import { colors } from "../../config";
@@ -61,6 +64,7 @@ function StoreTabBar(props: BottomTabBarProps) {
   );
 }
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
   const location = useAppSelector((x) => x.location);
   const userId = useAppSelector((x) => x.auth.user?.id);
   const bagCount = useAppSelector(
@@ -176,6 +180,7 @@ export default function TabLayout() {
           tabBarActiveTintColor: colors.gold,
           tabBarInactiveTintColor: colors.muted,
           tabBarStyle: {
+            height: 64 + insets.bottom,
             backgroundColor: colors.background,
             borderTopColor: colors.border,
           },
