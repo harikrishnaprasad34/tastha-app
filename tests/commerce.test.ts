@@ -193,7 +193,10 @@ describe("secure sessions and requests", () => {
     await manager.save(customer, manager.revision(), true);
     expect(appStore.getState().location?.label).toBe("Road 12");
     await manager.clear();
-    expect(appStore.getState().location).toEqual({label:"Delivery area 500034",pinCode:"500034"});
+    expect(appStore.getState().location).toEqual({
+      label: "Delivery area 500034",
+      pinCode: "500034",
+    });
   });
   it("rejects a staff session in the customer client", async () => {
     const manager = createSessionManager(storage());
@@ -776,6 +779,10 @@ describe("backend-compatible customer account and coupon requests", () => {
       identifier: "test@example.com",
       password: "Example pass",
     });
+    expect(customerLoginPayload(" New_Style ", "pass")).toEqual({
+      identifier: "new_style",
+      password: "pass",
+    });
     expect(() => customerLoginPayload("9999999999", "pass")).toThrow(
       "registered email",
     );
@@ -1061,12 +1068,14 @@ describe("native order tracking from verified statuses", () => {
 describe("native website-parity customer routes", () => {
   it("validates and normalizes native customer registration before POST", () => {
     const payload = customerRegistrationPayload({
+      username: " New_Style ",
       fullName: "  New   Customer ",
       email: "  CUSTOMER@EXAMPLE.COM ",
       phone: "9876543210",
       password: "Secure1!Pass",
     });
     expect(payload).toEqual({
+      username: "new_style",
       fullName: "New Customer",
       email: "customer@example.com",
       phone: "+919876543210",
@@ -1074,12 +1083,26 @@ describe("native website-parity customer routes", () => {
     });
     expect(() =>
       customerRegistrationPayload({
+        username: "x",
         fullName: "C",
         email: "invalid",
         phone: "11111",
         password: "password",
       }),
     ).toThrow();
+  });
+  it("rejects invalid usernames before creating an account", () => {
+    for (const username of ["", "ab", "1style", "bad name", "a".repeat(31)]) {
+      expect(() =>
+        customerRegistrationPayload({
+          username,
+          fullName: "Test Customer",
+          email: "test@example.com",
+          phone: "9876543210",
+          password: "Secure1!Pass",
+        }),
+      ).toThrow("3–30");
+    }
   });
   it("maps each help/policy page to the native route", () => {
     expect(routeFor("Help", "faq")).toBe("/help/faq");

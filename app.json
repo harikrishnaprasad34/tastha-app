@@ -2,7 +2,7 @@
   "expo": {
     "name": "Tastha",
     "slug": "tastha-app",
-    "version": "1.0.1",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -17,9 +17,17 @@
       }
     },
     "android": {
-      "versionCode": 2,
+      "versionCode": 4,
       "package": "com.tastha.app",
-      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png",
+        "backgroundColor": "#0A0B0E"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -34,7 +42,17 @@
         }
       ],
       "expo-secure-store",
-      "expo-router"
+      "expo-router",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/icon.png",
+          "imageWidth": 240,
+          "backgroundColor": "#0A0B0E",
+          "resizeMode": "contain"
+        }
+      ]
     ]
   }
 }

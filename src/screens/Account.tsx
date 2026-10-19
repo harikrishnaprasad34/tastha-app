@@ -1,3 +1,5 @@
+import { optionalLocationLookup } from "../shared/locationLookup";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useFocusEffect } from "expo-router";
 import { ScrollView, Text, View, Alert, Pressable } from "react-native";
@@ -18,11 +20,17 @@ import {
 import { api, session } from "../api/runtime";
 import { customerLoginPayload } from "../api/authPayload";
 import { mergeProfileUser } from "../api/profile";
-import { API_URL } from "../config";
+import { API_URL, colors } from "../config";
 import type { DeliveryLocation, Session } from "../models";
 import { useAppDispatch, useAppSelector } from "../state";
 import { actions, saveAddress, fetchAddresses } from "../state/store";
-import { Button, ErrorBox, Field, styles as s } from "../components/ui";
+import {
+  Button,
+  MenuItem,
+  ErrorBox,
+  Field,
+  styles as s,
+} from "../components/ui";
 import type { Navigate } from "./Shop";
 export function Login({ navigate }: { navigate: Navigate }) {
   const [error, setError] = useState("");
@@ -33,15 +41,24 @@ export function Login({ navigate }: { navigate: Navigate }) {
     >
       <Text style={s.title}>Welcome to Tastha</Text>
       <Text style={s.muted}>
-        Sign in using the registered email for your existing Tastha account.
+        Sign in with your registered email or username and password.
       </Text>
       <Formik
         initialValues={{ identifier: "", password: "" }}
         validationSchema={Yup.object({
           identifier: Yup.string()
             .trim()
-            .email("Enter a valid registered email address")
-            .required("Enter your email address"),
+            .test(
+              "identity",
+              "Enter your registered email or username",
+              (value) =>
+                Boolean(
+                  value &&
+                  (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ||
+                    /^[a-z][a-z0-9_]{2,29}$/i.test(value)),
+                ),
+            )
+            .required("Enter your email or username"),
           password: Yup.string().required("Enter your password"),
         })}
         onSubmit={async (values) => {
@@ -71,7 +88,7 @@ export function Login({ navigate }: { navigate: Navigate }) {
         }) => (
           <View style={{ gap: 16 }}>
             <Field
-              label="Email address"
+              label="Email or username"
               value={values.identifier}
               onChangeText={handleChange("identifier")}
               onBlur={handleBlur("identifier")}
@@ -211,25 +228,29 @@ export function Account({ navigate }: { navigate: Navigate }) {
               Manage your orders, saved addresses, preferences and security.
             </Text>
           </View>
-          <Button
+          <MenuItem
             title="My Profile"
-            outline
+            icon="person-outline"
             onPress={() => navigate("EditProfile")}
           />
-          <Button title="My Orders" onPress={() => navigate("Orders")} />
-          <Button
+          <MenuItem
+            title="My Orders"
+            icon="cube-outline"
+            onPress={() => navigate("Orders")}
+          />
+          <MenuItem
             title="Saved Addresses"
-            outline
+            icon="location-outline"
             onPress={() => navigate("Addresses")}
           />
-          <Button
+          <MenuItem
             title="Saved AI Looks"
-            outline
+            icon="albums-outline"
             onPress={() => navigate("SavedLooks")}
           />
-          <Button
+          <MenuItem
             title="Security & Sign In"
-            outline
+            icon="shield-checkmark-outline"
             onPress={() => navigate("Security")}
           />
           <Button
@@ -254,30 +275,46 @@ export function Account({ navigate }: { navigate: Navigate }) {
           />
         </>
       )}
-      <Button
+      <MenuItem
         title="Delivery location"
-        outline
+        icon="navigate-outline"
         onPress={() => navigate("Location")}
       />
-      <Button title="Contact Us" outline onPress={() => navigate("Contact")} />
-      <Button
+      <MenuItem
+        title="Contact Us"
+        icon="headset-outline"
+        onPress={() => navigate("Contact")}
+      />
+      <MenuItem
         title="Help and FAQs"
-        outline
+        icon="help-circle-outline"
         onPress={() => navigate("Help", "faq")}
       />
-      <Button
+      <MenuItem
         title="Privacy policy"
-        outline
+        icon="lock-closed-outline"
         onPress={() => navigate("Help", "privacy")}
       />
-      <Button
+      <MenuItem
         title="Shipping and returns"
-        outline
+        icon="swap-horizontal-outline"
         onPress={() => navigate("Help", "shipping")}
       />
-      <Button title="Style studio" outline onPress={() => navigate("AI")} />
-      <Button title="All website pages" outline onPress={() => navigate("WebsitePages")} />
-      <Button title="Admin workspace" outline onPress={() => navigate("Admin")} />
+      <MenuItem
+        title="Style studio"
+        icon="sparkles-outline"
+        onPress={() => navigate("AI")}
+      />
+      <MenuItem
+        title="All website pages"
+        icon="globe-outline"
+        onPress={() => navigate("WebsitePages")}
+      />
+      <MenuItem
+        title="Admin workspace"
+        icon="grid-outline"
+        onPress={() => navigate("Admin")}
+      />
     </ScrollView>
   );
 }
@@ -769,33 +806,23 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
       setPin("");
       setLabel("");
       const point = { latitude: coords.lat, longitude: coords.lng };
-      const native = await Location.reverseGeocodeAsync(point)
-        .then((items) => items[0] ?? null)
-        .catch(() => null);
-      let server = null;
-      if (!native?.postalCode || !native?.street) {
-        try {
-          const result = await api.request<{
-            location?: {
-              pinCode?: string;
-              pincode?: string;
-              postcode?: string;
-              displayAddress?: string;
-              address?: string;
-              city?: string;
-            };
+      const [native, serverResult] = await Promise.all([
+        optionalLocationLookup(
+          Location.reverseGeocodeAsync(point).then((items) => items[0] ?? null),
+        ),
+        optionalLocationLookup(
+          api.request<{
+            location?: import("../shared/deliveryLocation").ServerPlace;
           }>(
             "/location/reverse?lat=" +
               encodeURIComponent(coords.lat) +
               "&lng=" +
               encodeURIComponent(coords.lng),
             { timeout: 7000 },
-          );
-          server = result.location || null;
-        } catch {
-          // Native geocoding or manual confirmation remains available.
-        }
-      }
+          ),
+        ),
+      ]);
+      const server = serverResult?.location || null;
       const resolved = describeDetectedPlace(native, server);
       setPin(resolved.pinCode);
       setLabel(resolved.label);
@@ -824,6 +851,15 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
       setBusy(false);
     }
   }
+
+  const autoDetected = useRef(false);
+  useEffect(() => {
+    if (selected || autoDetected.current) return;
+    autoDetected.current = true;
+    void detect();
+    // Run once on the initial location screen; retries remain user initiated.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function confirm() {
     setError("");
@@ -860,14 +896,33 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
     >
       <Text style={s.title}>Where should we deliver?</Text>
       <Text style={s.muted}>
-        Find your nearby road or area for relevant products. Tastha asks for
-        location permission only when you choose current location.
+        Allow location access to find your building or road. Check the suggested
+        address before confirming.
       </Text>
       <View style={s.panel}>
-        <Text style={s.heading}>Use your current location</Text>
+        <View style={[s.row, { flexWrap: "nowrap" }]}>
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 14,
+              backgroundColor: colors.elevated,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Ionicons name="navigate" size={23} color={colors.gold} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.heading}>
+              {busy ? "Detecting your location…" : "Use your current location"}
+            </Text>
+            <Text style={s.small}>Building → road → neighbourhood</Text>
+          </View>
+        </View>
         <Text style={s.muted}>
-          We will suggest an address for you to check, not automatically replace
-          a saved delivery location.
+          Your device helps find a nearby address. You can search for a building
+          or enter it yourself.
         </Text>
         <Button
           title="Detect my current location"
@@ -904,9 +959,9 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
           ) : null}
           {accuracyNote ? <Text style={s.muted}>{accuracyNote}</Text> : null}
           <Field
-            label="Street, road or area"
+            label="Building, road or area"
             value={label}
-            placeholder="Road number, landmark or locality"
+            placeholder="Building name, road number or locality"
             onChangeText={(value) => {
               setLabel(value);
               // Changing a road must not carry forward an unrelated old PIN.

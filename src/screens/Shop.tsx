@@ -1,3 +1,4 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { QuickAddSheet } from "../components/QuickAddSheet";
 import React, { useEffect, useState, useRef } from "react";
 import {
@@ -12,10 +13,9 @@ import {
 } from "react-native";
 import { SizeGuide } from "../components/SizeGuide";
 import { catalogFilterError } from "../shared/catalogFilters";
-import { StoreContact } from "../components/StoreContact";
 import { ProductReviews } from "../components/ProductReviews";
 import { api } from "../api/runtime";
-import { API_ORIGIN } from "../config";
+import { API_ORIGIN, colors } from "../config";
 import type { Product, CatalogFilter } from "../models";
 import { useAppDispatch, useAppSelector } from "../state";
 import {
@@ -69,55 +69,63 @@ export function ProductCard({
     <View
       style={[
         s.panel,
-        { flex: 1, minWidth: 0, margin: 5, padding: 10, gap: 10 },
+        {
+          flex: 1,
+          minWidth: 0,
+          margin: 4,
+          padding: 8,
+          gap: 8,
+          borderRadius: 16,
+          overflow: "hidden",
+        },
       ]}
     >
-      <View style={[s.row, { justifyContent: "space-between", gap: 4 }]}>
-        <Text
-          numberOfLines={1}
-          style={[s.small, { color: "#D4AF37", flex: 1 }]}
-        >
-          {product.brand || "TASTHA"}
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={
-            (isSaved ? "Remove " : "Save ") +
-            product.name +
-            (isSaved ? " from wishlist" : " to wishlist")
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={
+          (isSaved ? "Remove " : "Save ") +
+          product.name +
+          (isSaved ? " from wishlist" : " to wishlist")
+        }
+        accessibilityState={{ selected: isSaved, disabled: saving }}
+        disabled={saving}
+        style={{
+          position: "absolute",
+          top: 10,
+          right: 10,
+          zIndex: 2,
+          backgroundColor: "#121316DD",
+          borderRadius: 22,
+          minWidth: 44,
+          minHeight: 44,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+        onPress={() => {
+          if (accountId === "guest") {
+            navigate("Login", "/product/" + encodeURIComponent(product._id));
+            return;
           }
-          accessibilityState={{ selected: isSaved, disabled: saving }}
-          disabled={saving}
-          style={{
-            minWidth: 44,
-            minHeight: 44,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-          onPress={() => {
-            if (accountId === "guest") {
-              navigate("Login", "/product/" + encodeURIComponent(product._id));
-              return;
-            }
-            void dispatch(changeWishlist({ id: product._id, remove: isSaved }))
-              .unwrap()
-              .then(() =>
-                setNotice(
-                  isSaved ? "Removed from wishlist" : "Saved to wishlist",
-                ),
-              )
-              .catch((e) =>
-                setNotice(
-                  e instanceof Error ? e.message : "Wishlist update failed",
-                ),
-              );
-          }}
-        >
-          <Text style={{ color: "#D4AF37", fontSize: 24 }}>
-            {isSaved ? "♥" : "♡"}
-          </Text>
-        </Pressable>
-      </View>
+          void dispatch(changeWishlist({ id: product._id, remove: isSaved }))
+            .unwrap()
+            .then(() =>
+              setNotice(
+                isSaved ? "Removed from wishlist" : "Saved to wishlist",
+              ),
+            )
+            .catch((e) =>
+              setNotice(
+                e instanceof Error ? e.message : "Wishlist update failed",
+              ),
+            );
+        }}
+      >
+        <Ionicons
+          name={isSaved ? "heart" : "heart-outline"}
+          size={20}
+          color={colors.gold}
+        />
+      </Pressable>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={"View " + product.name}
@@ -128,19 +136,41 @@ export function ProductCard({
           <Image
             source={{ uri: image }}
             accessibilityLabel={product.name}
-            style={[s.image, { height: 170, borderRadius: 10 }]}
+            style={[s.image, { height: 180, borderRadius: 10 }]}
           />
         ) : (
-          <Text style={s.muted}>Image unavailable</Text>
+          <View
+            style={{
+              height: 180,
+              backgroundColor: colors.elevated,
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 10,
+            }}
+          >
+            <Ionicons name="shirt-outline" size={32} color={colors.muted} />
+            <Text style={s.small}>Image unavailable</Text>
+          </View>
         )}
         <Text
+          numberOfLines={1}
+          style={{
+            color: colors.muted,
+            fontSize: 11,
+            fontWeight: "700",
+            letterSpacing: 0.6,
+          }}
+        >
+          {product.brand || "TASTHA"}
+        </Text>
+        <Text
           numberOfLines={2}
-          style={[s.text, { minHeight: 42, fontSize: 14 }]}
+          style={[s.text, { minHeight: 40, fontSize: 14, lineHeight: 20 }]}
         >
           {product.name}
         </Text>
         <View style={[s.row, { gap: 6 }]}>
-          <Text style={[s.price, { fontSize: 18 }]}>
+          <Text style={[s.price, { fontSize: 16 }]}>
             {money(product.price)}
           </Text>
           {savings > 0 ? (
@@ -156,7 +186,7 @@ export function ProductCard({
         ) : null}
       </Pressable>
       <Button
-        title="+ Add"
+        title="Choose size"
         outline
         onPress={() => {
           setNotice("");
@@ -181,6 +211,56 @@ export function ProductCard({
   );
 }
 
+type ShortcutIcon = React.ComponentProps<typeof Ionicons>["name"];
+function Shortcut({
+  title,
+  icon,
+  onPress,
+}: {
+  title: string;
+  icon: ShortcutIcon;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={{
+        flex: 1,
+        alignItems: "center",
+        gap: 7,
+        minWidth: 60,
+        paddingVertical: 6,
+      }}
+    >
+      <View
+        style={{
+          width: 46,
+          height: 46,
+          borderRadius: 16,
+          backgroundColor: colors.elevated,
+          alignItems: "center",
+          justifyContent: "center",
+          borderWidth: 1,
+          borderColor: colors.border,
+        }}
+      >
+        <Ionicons name={icon} size={22} color={colors.gold} />
+      </View>
+      <Text
+        numberOfLines={2}
+        style={{
+          color: colors.text,
+          fontSize: 12,
+          fontWeight: "600",
+          textAlign: "center",
+        }}
+      >
+        {title}
+      </Text>
+    </Pressable>
+  );
+}
 export function Home({ navigate }: { navigate: Navigate }) {
   const dispatch = useAppDispatch();
   const { home, homeLoading, homeError } = useAppSelector((x) => x.catalog);
@@ -190,232 +270,503 @@ export function Home({ navigate }: { navigate: Navigate }) {
     const job = dispatch(fetchHome(pin));
     return () => job.abort();
   }, [dispatch, pin]);
-  const banners = home?.banners || [],
-    banner = banners.length ? banners[slide % banners.length] : undefined;
-  const hero = imageUrl(
-    banner?.mobileImage ||
-      banner?.mobileImageUrl ||
-      banner?.image ||
-      banner?.imageUrl,
-    API_ORIGIN,
-  );
+  const banners = home?.banners || [];
+  const banner = banners.length ? banners[slide % banners.length] : undefined;
+  const sections =
+    home?.sections?.filter((section) => section.products?.length) || [];
+  const firstProduct = sections[0]?.products[0];
+  const hero =
+    imageUrl(
+      banner?.mobileImage ||
+        banner?.mobileImageUrl ||
+        banner?.image ||
+        banner?.imageUrl,
+      API_ORIGIN,
+    ) ||
+    (firstProduct ? productImages(firstProduct, API_ORIGIN)[0] : undefined);
   return (
-    <ScrollView contentContainerStyle={s.content}>
-      <View style={[s.row, { justifyContent: "space-between" }]}>
-        <Text style={[s.muted, { color: "#D4AF37", letterSpacing: 2 }]}>
-          THE TASTHA EXPERIENCE
-        </Text>
-        <Button title="Style studio" outline onPress={() => navigate("AI")} />
-      </View>
-      <Text style={s.muted}>Less searching. More finding your style.</Text>
-      <View style={s.row}>
-        <Button
-          title="New in"
-          outline
+    <ScrollView
+      contentContainerStyle={[s.content, { gap: 20 }]}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={{ flexDirection: "row", gap: 6 }}>
+        <Shortcut
+          title="New arrivals"
+          icon="sparkles-outline"
           onPress={() => navigate("StoreLink", "/shop?sort=newest")}
         />
-        <Button
+        <Shortcut
           title="Offers"
-          outline
+          icon="pricetag-outline"
           onPress={() => navigate("StoreLink", "/shop?offersOnly=true")}
         />
-        <Button
+        <Shortcut
+          title="Style studio"
+          icon="color-palette-outline"
+          onPress={() => navigate("AI")}
+        />
+        <Shortcut
           title="Saved looks"
-          outline
+          icon="albums-outline"
           onPress={() => navigate("SavedLooks")}
         />
       </View>
-      {homeLoading ? <Loading /> : null}
+      {homeLoading ? (
+        <View
+          style={[
+            s.panel,
+            { minHeight: 150, justifyContent: "center", alignItems: "center" },
+          ]}
+        >
+          <Loading />
+          <Text style={s.muted}>Finding your next favourite…</Text>
+          <Text style={s.small}>Loading Tastha collections</Text>
+        </View>
+      ) : null}
       <ErrorBox message={homeError} retry={() => dispatch(fetchHome(pin))} />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={s.row}>
-          <Button title="All styles" outline onPress={() => navigate("Shop")} />
-          {home?.categories?.map((category) => (
-            <Pressable
-              key={category.slug || category.name}
-              style={[
-                s.pill,
-                { width: 86, alignItems: "center", borderWidth: 0, padding: 6 },
-              ]}
-              accessibilityRole="button"
-              onPress={() => navigate("Shop", category.name)}
-            >
-              {imageUrl(category.image, API_ORIGIN) ? (
-                <Image
-                  source={{ uri: imageUrl(category.image, API_ORIGIN)! }}
-                  style={{
-                    width: 60,
-                    height: 60,
-                    borderRadius: 30,
-                    backgroundColor: "#121316",
-                  }}
-                  accessibilityLabel={category.name}
-                />
-              ) : null}
-              <Text
-                numberOfLines={2}
-                style={[s.small, { textAlign: "center" }]}
-              >
-                {category.name}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      </ScrollView>
       {home ? (
-        <View style={s.panel}>
-          {hero ? (
-            <Image
-              source={{ uri: hero }}
-              style={[s.image, { height: 280 }]}
-              resizeMode="cover"
-              accessibilityLabel={banner?.title || "Tastha collection"}
-            />
-          ) : null}
-          <Text style={[s.muted, { color: "#D4AF37" }]}>
-            {banner?.eyebrow || "A WARDROBE, WITH INTENTION"}
-          </Text>
-          <Text style={s.title}>
-            {banner?.title ||
-              home.config?.headline ||
-              "Discover your next favourite"}
-          </Text>
-          <Text style={s.muted}>
-            {banner?.subtitle || home.config?.description}
-          </Text>
-          <Button
-            title={banner?.ctaText || "Discover the collection"}
-            onPress={() =>
-              navigate("StoreLink", banner?.ctaLink || banner?.link || "/shop")
-            }
-          />
-          {banners.length > 1 ? (
-            <View style={s.row}>
-              <Button
-                title="Previous campaign"
-                outline
-                onPress={() =>
-                  setSlide((x) => (x - 1 + banners.length) % banners.length)
-                }
-              />
-              <Text style={s.muted}>
-                {(slide % banners.length) + 1} / {banners.length}
-              </Text>
-              <Button
-                title="Next campaign"
-                outline
-                onPress={() => setSlide((x) => (x + 1) % banners.length)}
-              />
+        <>
+          <View style={{ gap: 12 }}>
+            <View style={[s.row, { justifyContent: "space-between" }]}>
+              <Text style={s.heading}>Shop by category</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="View all categories"
+                onPress={() => navigate("Shop")}
+                style={{ minHeight: 44, justifyContent: "center" }}
+              >
+                <Text
+                  style={{
+                    color: colors.gold,
+                    fontSize: 12,
+                    fontWeight: "700",
+                  }}
+                >
+                  View all
+                </Text>
+              </Pressable>
             </View>
-          ) : null}
-        </View>
-      ) : null}
-      {home?.config?.budgets?.length ? (
-        <View style={s.panel}>
-          <Text style={s.heading}>Great style has a range.</Text>
-          <View style={s.row}>
-            {home.config.budgets
-              .filter((x) => Number.isFinite(x) && x > 0)
-              .map((budget) => (
-                <Button
-                  key={budget}
-                  title={"Under " + money(budget)}
-                  outline
-                  onPress={() =>
-                    navigate(
-                      "StoreLink",
-                      "/shop?maxPrice=" + budget + "&sort=price_low",
-                    )
-                  }
-                />
-              ))}
-          </View>
-        </View>
-      ) : null}
-      {home?.delivery?.message ? (
-        <Text style={s.muted}>{home.delivery.message}</Text>
-      ) : null}
-      {home?.sections
-        ?.filter((section) => section.products?.length)
-        .map((section, i) => (
-          <View key={section.id || i} style={{ gap: 12 }}>
-            <Text style={s.heading}>{section.title}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={[s.row, { alignItems: "stretch" }]}>
-                {section.products.map((product) => (
-                  <View key={product._id} style={{ width: 190 }}>
-                    <ProductCard product={product} navigate={navigate} />
+              <View style={{ flexDirection: "row", gap: 14 }}>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => navigate("Shop")}
+                  style={{ width: 72, alignItems: "center", gap: 8 }}
+                >
+                  <View
+                    style={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: 20,
+                      backgroundColor: colors.elevated,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Ionicons
+                      name="grid-outline"
+                      size={28}
+                      color={colors.gold}
+                    />
                   </View>
+                  <Text style={[s.small, { color: colors.text }]}>
+                    All styles
+                  </Text>
+                </Pressable>
+                {home.categories?.map((category) => (
+                  <Pressable
+                    key={category.slug || category.name}
+                    accessibilityRole="button"
+                    onPress={() => navigate("Shop", category.name)}
+                    style={{ width: 72, alignItems: "center", gap: 8 }}
+                  >
+                    {imageUrl(category.image, API_ORIGIN) ? (
+                      <Image
+                        source={{ uri: imageUrl(category.image, API_ORIGIN)! }}
+                        style={{
+                          width: 64,
+                          height: 64,
+                          borderRadius: 20,
+                          backgroundColor: colors.elevated,
+                        }}
+                        accessibilityLabel={category.name}
+                      />
+                    ) : (
+                      <View
+                        style={{
+                          width: 64,
+                          height: 64,
+                          borderRadius: 20,
+                          backgroundColor: colors.elevated,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Ionicons
+                          name="shirt-outline"
+                          size={28}
+                          color={colors.gold}
+                        />
+                      </View>
+                    )}
+                    <Text
+                      numberOfLines={2}
+                      style={[
+                        s.small,
+                        { color: colors.text, textAlign: "center" },
+                      ]}
+                    >
+                      {category.name}
+                    </Text>
+                  </Pressable>
                 ))}
               </View>
             </ScrollView>
-            <Button
-              title={"Explore " + section.title}
-              outline
-              onPress={() =>
-                navigate(
-                  "StoreLink",
-                  section.id === "newest" ? "/shop?sort=newest" : "/shop",
-                )
-              }
-            />
           </View>
-        ))}
-      {home && !home.sections?.some((section) => section.products?.length) ? (
-        <Empty
-          title="Your next favourite is on its way"
-          detail={
-            home.delivery?.message ||
-            "Explore the catalog or choose another category."
-          }
-        />
-      ) : null}
-      {home?.occasions?.length ? (
-        <View style={s.panel}>
-          <Text style={s.heading}>Where are you heading?</Text>
-          <Text style={s.muted}>
-            Start with the moment. Discover your outfit.
-          </Text>
-          {home.occasions.map((occasion, i) => (
-            <Button
-              key={occasion._id || i}
-              title={occasion.title || occasion.name || "Explore occasion"}
-              outline
-              onPress={() =>
-                navigate(
-                  "StoreLink",
-                  "/choose-occasion?occasion=" +
-                    encodeURIComponent(occasion.slug || occasion.title || ""),
-                )
-              }
-            />
+          {home.delivery?.message ? (
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+            >
+              <Ionicons
+                name="information-circle-outline"
+                size={18}
+                color={colors.gold}
+              />
+              <Text style={[s.small, { flex: 1 }]}>
+                {home.delivery.message}
+              </Text>
+            </View>
+          ) : null}
+          {sections.map((section, index) => (
+            <View key={section.id || index} style={{ gap: 10 }}>
+              <View
+                style={[
+                  s.row,
+                  { justifyContent: "space-between", flexWrap: "nowrap" },
+                ]}
+              >
+                <View style={{ flex: 1, gap: 3 }}>
+                  <Text style={s.heading}>{section.title}</Text>
+                  <Text style={s.small}>
+                    {section.id === "deals"
+                      ? "Fresh finds. Real savings."
+                      : "Discover more of what you love"}
+                  </Text>
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={"Explore " + section.title}
+                  onPress={() =>
+                    navigate(
+                      "StoreLink",
+                      section.id === "newest" || section.id === "new"
+                        ? "/shop?sort=newest"
+                        : section.id === "deals"
+                          ? "/shop?offersOnly=true"
+                          : "/shop",
+                    )
+                  }
+                  style={{
+                    minHeight: 44,
+                    minWidth: 44,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    backgroundColor: colors.elevated,
+                    borderRadius: 22,
+                  }}
+                >
+                  <Ionicons
+                    name="arrow-forward"
+                    size={20}
+                    color={colors.gold}
+                  />
+                </Pressable>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "stretch",
+                    gap: 4,
+                  }}
+                >
+                  {section.products.map((product) => (
+                    <View key={product._id} style={{ width: 168 }}>
+                      <ProductCard product={product} navigate={navigate} />
+                    </View>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
           ))}
-        </View>
+          <View
+            style={{
+              borderRadius: 20,
+              overflow: "hidden",
+              backgroundColor: "#252319",
+              borderWidth: 1,
+              borderColor: "#443D25",
+            }}
+          >
+            <View style={{ flexDirection: "row", minHeight: 174 }}>
+              <View
+                style={{
+                  flex: 1,
+                  padding: 18,
+                  gap: 8,
+                  justifyContent: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    color: colors.gold,
+                    fontSize: 11,
+                    fontWeight: "700",
+                    letterSpacing: 1.5,
+                  }}
+                >
+                  {banner?.eyebrow || "THE TASTHA EDIT"}
+                </Text>
+                <Text
+                  numberOfLines={3}
+                  style={{
+                    color: colors.text,
+                    fontSize: 23,
+                    lineHeight: 28,
+                    fontWeight: "800",
+                  }}
+                >
+                  {banner?.title ||
+                    home.config?.headline ||
+                    "Your style. Your next favourite."}
+                </Text>
+                <Text numberOfLines={2} style={[s.small, { lineHeight: 17 }]}>
+                  {banner?.subtitle ||
+                    home.config?.description ||
+                    "Discover the latest Tastha collections."}
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() =>
+                    navigate(
+                      "StoreLink",
+                      banner?.ctaLink || banner?.link || "/shop",
+                    )
+                  }
+                  style={{
+                    flexDirection: "row",
+                    gap: 6,
+                    alignItems: "center",
+                    minHeight: 44,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: colors.gold,
+                      fontSize: 12,
+                      fontWeight: "700",
+                      flexShrink: 1,
+                    }}
+                  >
+                    {banner?.ctaText || "Explore collection"}
+                  </Text>
+                  <Ionicons
+                    name="arrow-forward"
+                    size={16}
+                    color={colors.gold}
+                  />
+                </Pressable>
+              </View>
+              {hero ? (
+                <Image
+                  source={{ uri: hero }}
+                  style={{ width: "38%", minHeight: 174 }}
+                  resizeMode="cover"
+                  accessibilityLabel={
+                    banner?.title || firstProduct?.name || "Tastha collection"
+                  }
+                />
+              ) : null}
+            </View>
+            {banners.length > 1 ? (
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "center",
+                  paddingBottom: 8,
+                  gap: 8,
+                }}
+              >
+                {banners.map((_, index) => (
+                  <Pressable
+                    key={index}
+                    accessibilityRole="button"
+                    accessibilityLabel={"Show campaign " + (index + 1)}
+                    accessibilityState={{
+                      selected: index === slide % banners.length,
+                    }}
+                    onPress={() => setSlide(index)}
+                    style={{
+                      minWidth: 32,
+                      minHeight: 32,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: index === slide % banners.length ? 20 : 6,
+                        height: 6,
+                        borderRadius: 3,
+                        backgroundColor:
+                          index === slide % banners.length
+                            ? colors.gold
+                            : colors.muted,
+                      }}
+                    />
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+          </View>
+          {!sections.length ? (
+            <View style={s.panel}>
+              <Ionicons
+                name="bag-handle-outline"
+                size={28}
+                color={colors.gold}
+              />
+              <Text style={s.heading}>Explore the Tastha collection</Text>
+              <Text style={s.muted}>
+                {home.delivery?.message ||
+                  "No featured products are available right now. Browse the catalog for current availability."}
+              </Text>
+              <Button
+                title="Browse products"
+                onPress={() => navigate("Shop")}
+              />
+            </View>
+          ) : null}
+          {home.config?.budgets?.length ? (
+            <View style={{ gap: 12 }}>
+              <Text style={s.heading}>Find your price, love your style</Text>
+              <View style={s.row}>
+                {home.config.budgets
+                  .filter((x) => Number.isFinite(x) && x > 0)
+                  .map((budget) => (
+                    <Pressable
+                      key={budget}
+                      accessibilityRole="button"
+                      onPress={() =>
+                        navigate(
+                          "StoreLink",
+                          "/shop?maxPrice=" + budget + "&sort=price_low",
+                        )
+                      }
+                      style={[s.pill, { backgroundColor: colors.elevated }]}
+                    >
+                      <Text
+                        style={{
+                          color: colors.gold,
+                          fontWeight: "700",
+                          fontSize: 13,
+                        }}
+                      >
+                        Under {money(budget)}
+                      </Text>
+                    </Pressable>
+                  ))}
+              </View>
+            </View>
+          ) : null}
+          {home.occasions?.length ? (
+            <View style={s.panel}>
+              <Text style={s.heading}>A look for every plan</Text>
+              <View style={s.row}>
+                {home.occasions.map((occasion, index) => (
+                  <Pressable
+                    key={occasion._id || index}
+                    accessibilityRole="button"
+                    onPress={() =>
+                      navigate(
+                        "StoreLink",
+                        "/choose-occasion?occasion=" +
+                          encodeURIComponent(
+                            occasion.slug || occasion.title || "",
+                          ),
+                      )
+                    }
+                    style={[
+                      s.pill,
+                      { flexDirection: "row", gap: 7, alignItems: "center" },
+                    ]}
+                  >
+                    <Ionicons
+                      name="sparkles-outline"
+                      size={16}
+                      color={colors.gold}
+                    />
+                    <Text style={s.text}>
+                      {occasion.title || occasion.name || "Explore"}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          ) : null}
+        </>
       ) : null}
-      <View style={{ gap: 12, paddingVertical: 12 }}>
-        <Text style={[s.small, { color: "#D4AF37", letterSpacing: 2 }]}>
-          MAKE IT YOURS
+      <View
+        style={{
+          paddingVertical: 20,
+          gap: 8,
+          borderTopWidth: 1,
+          borderColor: colors.border,
+        }}
+      >
+        <Text
+          style={{
+            color: colors.gold,
+            fontSize: 20,
+            fontWeight: "800",
+            letterSpacing: 3,
+          }}
+        >
+          TASTHA
         </Text>
-        <Text style={[s.title, { fontSize: 26 }]}>
-          One good piece.{" "}
-          <Text style={{ color: "#D4AF37", fontStyle: "italic" }}>
-            Endless possibilities.
-          </Text>
-        </Text>
-        <Button title="See every style" onPress={() => navigate("Shop")} />
-      </View>
-      <StoreContact compact />
-      <View style={s.row}>
-        <Button
-          title="Contact Us"
-          outline
-          onPress={() => navigate("Contact")}
-        />
-        <Button
-          title="Help & FAQs"
-          outline
-          onPress={() => navigate("Help", "faq")}
-        />
+        <Text style={s.small}>Find your style. Make it yours.</Text>
+        <View style={s.row}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => navigate("Contact")}
+            style={{
+              minHeight: 44,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <Ionicons name="headset-outline" size={16} color={colors.muted} />
+            <Text style={s.small}>Contact us</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => navigate("Help", "faq")}
+            style={{
+              minHeight: 44,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <Ionicons
+              name="help-circle-outline"
+              size={16}
+              color={colors.muted}
+            />
+            <Text style={s.small}>Help & FAQs</Text>
+          </Pressable>
+        </View>
       </View>
     </ScrollView>
   );
@@ -457,6 +808,7 @@ export function Catalog({
     brand: brand || "",
     offersOnly: Boolean(offersOnly),
   });
+  const [showFilters, setShowFilters] = useState(false);
   const changedByCustomer = useRef(false);
   const setFilter: React.Dispatch<React.SetStateAction<CatalogFilter>> = (
     value,
@@ -547,17 +899,25 @@ export function Catalog({
       numColumns={2}
       contentContainerStyle={{ padding: 10, paddingBottom: 30 }}
       renderItem={({ item }) => (
-        <ProductCard product={item} navigate={navigate} />
+        <View style={{ width: "50%" }}>
+          <ProductCard product={item} navigate={navigate} />
+        </View>
       )}
       ListHeaderComponent={
-        <View style={s.content}>
-          <Text style={s.title}>The collection</Text>
+        <View
+          style={[
+            s.content,
+            { paddingHorizontal: 6, paddingTop: 8, paddingBottom: 12, gap: 10 },
+          ]}
+        >
+          <Text style={[s.title, { fontSize: 22 }]}>The collection</Text>
           <Field
             label="Search products"
+            placeholder="Find shirts, trousers & more"
             value={filter.search}
             onChangeText={(search) => setFilter({ ...filter, search })}
           />
-          <Text style={s.heading}>Browse by category</Text>
+          <Text style={s.muted}>Browse by category</Text>
           <View style={s.row}>
             <Pressable
               accessibilityRole="button"
@@ -589,88 +949,101 @@ export function Catalog({
             ))}
           </View>
           <ErrorBox message={categoryError} />
-          <Field
-            label="Brand"
-            value={filter.brand || ""}
-            maxLength={200}
-            onChangeText={(brand) =>
-              setFilter((current) => ({ ...current, brand }))
-            }
-          />
-          <Field
-            label="Minimum price (₹)"
-            value={filter.minPrice || ""}
-            keyboardType="number-pad"
-            onChangeText={(minPrice) =>
-              setFilter((current) => ({
-                ...current,
-                minPrice: minPrice.replace(/[^0-9]/g, ""),
-              }))
-            }
-          />
-          <Field
-            label="Maximum price (₹)"
-            value={filter.maxPrice}
-            keyboardType="number-pad"
-            onChangeText={(maxPrice) =>
-              setFilter((current) => ({
-                ...current,
-                maxPrice: maxPrice.replace(/[^0-9]/g, ""),
-              }))
-            }
-          />
-          <ErrorBox message={filterError} />
-          <Pressable
-            accessibilityRole="checkbox"
-            accessibilityState={{ checked: Boolean(filter.offersOnly) }}
-            style={[s.pill, filter.offersOnly && s.active]}
-            onPress={() =>
-              setFilter((current) => ({
-                ...current,
-                offersOnly: !current.offersOnly,
-              }))
-            }
-          >
-            <Text style={s.text}>
-              {filter.offersOnly ? "✓ " : ""}Offers only
-            </Text>
-          </Pressable>
           <Button
-            title="Clear all filters"
+            title={showFilters ? "Hide filters" : "Filter & sort"}
             outline
-            onPress={() =>
-              setFilter({
-                search: "",
-                category: "",
-                sort: "newest",
-                maxPrice: "",
-              })
-            }
+            onPress={() => setShowFilters((value) => !value)}
           />
-          {currentResults ? (
-            <Text accessibilityLiveRegion="polite" style={s.muted}>
-              {c.total} matching products
-            </Text>
-          ) : null}
-          <Text style={s.heading}>Sort products</Text>
-          <View style={s.row}>
-            {[
-              ["newest", "Newest"],
-              ["price_low", "Price ↑"],
-              ["price_high", "Price ↓"],
-              ["popular", "Popular"],
-            ].map(([value, label]) => (
+          {showFilters ? (
+            <View style={s.panel}>
+              <Field
+                label="Brand"
+                value={filter.brand || ""}
+                maxLength={200}
+                onChangeText={(brand) =>
+                  setFilter((current) => ({ ...current, brand }))
+                }
+              />
+              <Field
+                label="Minimum price (₹)"
+                value={filter.minPrice || ""}
+                keyboardType="number-pad"
+                onChangeText={(minPrice) =>
+                  setFilter((current) => ({
+                    ...current,
+                    minPrice: minPrice.replace(/[^0-9]/g, ""),
+                  }))
+                }
+              />
+              <Field
+                label="Maximum price (₹)"
+                value={filter.maxPrice}
+                keyboardType="number-pad"
+                onChangeText={(maxPrice) =>
+                  setFilter((current) => ({
+                    ...current,
+                    maxPrice: maxPrice.replace(/[^0-9]/g, ""),
+                  }))
+                }
+              />
+              <ErrorBox message={filterError} />
               <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ selected: filter.sort === value }}
-                key={value}
-                style={[s.pill, filter.sort === value && s.active]}
-                onPress={() => setFilter({ ...filter, sort: value })}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: Boolean(filter.offersOnly) }}
+                style={[s.pill, filter.offersOnly && s.active]}
+                onPress={() =>
+                  setFilter((current) => ({
+                    ...current,
+                    offersOnly: !current.offersOnly,
+                  }))
+                }
               >
-                <Text style={s.text}>{label}</Text>
+                <Text style={s.text}>
+                  {filter.offersOnly ? "✓ " : ""}Offers only
+                </Text>
               </Pressable>
-            ))}
-          </View>
+              <Button
+                title="Clear all filters"
+                outline
+                onPress={() =>
+                  setFilter({
+                    search: "",
+                    category: "",
+                    sort: "newest",
+                    maxPrice: "",
+                  })
+                }
+              />
+              {currentResults ? (
+                <Text accessibilityLiveRegion="polite" style={s.muted}>
+                  {c.total} matching products
+                </Text>
+              ) : null}
+              <Text style={s.heading}>Sort products</Text>
+              <View style={s.row}>
+                {[
+                  ["newest", "Newest"],
+                  ["price_low", "Price ↑"],
+                  ["price_high", "Price ↓"],
+                  ["popular", "Popular"],
+                ].map(([value, label]) => (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: filter.sort === value }}
+                    key={value}
+                    style={[s.pill, filter.sort === value && s.active]}
+                    onPress={() => setFilter({ ...filter, sort: value })}
+                  >
+                    <Text style={s.text}>{label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          ) : null}
+          <ErrorBox message={!showFilters ? filterError : ""} />
+          {currentResults ? (
+            <Text style={s.small}>{c.total} products</Text>
+          ) : null}
         </View>
       }
       onEndReachedThreshold={0.5}

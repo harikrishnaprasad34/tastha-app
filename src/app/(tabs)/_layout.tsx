@@ -1,3 +1,5 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { deliveryHeader } from "../../shared/deliveryLocation";
 import {
   Tabs,
   BottomTabBar,
@@ -7,7 +9,10 @@ import { money } from "../../shared/catalog";
 import React, { useEffect, useRef } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Link, useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { useAppDispatch, useAppSelector } from "../../state";
 import { fetchBag, fetchWishlist } from "../../state/store";
 import { colors } from "../../config";
@@ -58,7 +63,164 @@ function StoreTabBar(props: BottomTabBarProps) {
     </View>
   );
 }
+function StoreHeader({ route }: { route: { name: string } }) {
+  const location = useAppSelector((x) => x.location);
+  const address = deliveryHeader(location);
+  if (route.name !== "index")
+    return (
+      <SafeAreaView
+        edges={["top", "left", "right"]}
+        style={[s.header, { backgroundColor: colors.background }]}
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            minHeight: 44,
+          }}
+        >
+          <Text
+            style={{
+              flex: 1,
+              color: colors.gold,
+              letterSpacing: 3,
+              fontSize: 15,
+              fontWeight: "800",
+            }}
+          >
+            TASTHA
+          </Text>
+          <Link href="/search" asChild>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Search products"
+              style={{
+                width: 44,
+                height: 44,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Ionicons name="search-outline" size={22} color={colors.text} />
+            </Pressable>
+          </Link>
+          <Link href="/help/faq" asChild>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Help and FAQs"
+              style={{
+                width: 44,
+                height: 44,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Ionicons
+                name="help-circle-outline"
+                size={22}
+                color={colors.text}
+              />
+            </Pressable>
+          </Link>
+        </View>
+      </SafeAreaView>
+    );
+  return (
+    <SafeAreaView
+      edges={["top", "left", "right"]}
+      style={[s.header, { backgroundColor: colors.background }]}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <View
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 12,
+            backgroundColor: colors.elevated,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Ionicons name="location" size={21} color={colors.gold} />
+        </View>
+        <Link href="/location" asChild>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              "Deliver to " +
+              address.title +
+              ". " +
+              address.subtitle +
+              ". Change delivery location"
+            }
+            style={{
+              flex: 1,
+              minHeight: 44,
+              justifyContent: "center",
+              gap: 2,
+            }}
+          >
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
+            >
+              <Text
+                numberOfLines={1}
+                style={{
+                  color: colors.text,
+                  fontWeight: "700",
+                  fontSize: 15,
+                  flexShrink: 1,
+                }}
+              >
+                {address.title}
+              </Text>
+              <Ionicons name="chevron-down" size={15} color={colors.gold} />
+            </View>
+            <Text numberOfLines={1} style={s.small}>
+              {address.subtitle}
+            </Text>
+          </Pressable>
+        </Link>
+        <Text
+          style={{
+            color: colors.gold,
+            fontWeight: "800",
+            fontSize: 12,
+            letterSpacing: 2,
+          }}
+        >
+          TASTHA
+        </Text>
+      </View>
+      <Link href="/search" asChild>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Search products"
+          style={{
+            minHeight: 46,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
+            paddingHorizontal: 12,
+            borderRadius: 12,
+            backgroundColor: colors.elevated,
+            borderWidth: 1,
+            borderColor: colors.border,
+          }}
+        >
+          <Ionicons name="search-outline" size={20} color={colors.gold} />
+          <Text style={[s.muted, { flex: 1 }]}>
+            Search fashion, brands & more
+          </Text>
+          <Ionicons name="options-outline" size={19} color={colors.muted} />
+        </Pressable>
+      </Link>
+    </SafeAreaView>
+  );
+}
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
   const location = useAppSelector((x) => x.location);
   const userId = useAppSelector((x) => x.auth.user?.id);
   const bagCount = useAppSelector(
@@ -83,46 +245,17 @@ export default function TabLayout() {
   }, [location, router]);
   return (
     <View style={s.screen}>
-      <SafeAreaView edges={["top", "left", "right"]} style={s.header}>
-        <Text
-          style={[
-            s.heading,
-            { color: colors.gold, letterSpacing: 4, fontSize: 17 },
-          ]}
-        >
-          TASTHA
-        </Text>
-        <Link href="/location" asChild>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Change delivery location"
-            style={{ minHeight: 44, justifyContent: "center" }}
-          >
-            <Text style={[s.small, { color: colors.gold }]}>DELIVER TO</Text>
-            <Text numberOfLines={1} style={[s.text, { fontWeight: "600" }]}>
-              {" "}
-              {location?.label || "Choose your location"}{" "}
-              {location?.pinCode || ""} ▾
-            </Text>
-          </Pressable>
-        </Link>
-        <Link href="/search" asChild>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Search products"
-            style={[s.pill, { minHeight: 44, justifyContent: "center" }]}
-          >
-            <Text style={s.muted}>⌕ Search products and collections</Text>
-          </Pressable>
-        </Link>
-      </SafeAreaView>
       <Tabs
         tabBar={(props) => <StoreTabBar {...props} />}
         screenOptions={{
-          headerShown: false,
+          headerShown: true,
+          header: (props) => <StoreHeader route={props.route} />,
+          tabBarLabelStyle: { fontSize: 12, fontWeight: "600" },
+          tabBarItemStyle: { paddingVertical: 4 },
           tabBarActiveTintColor: colors.gold,
           tabBarInactiveTintColor: colors.muted,
           tabBarStyle: {
+            height: 64 + insets.bottom,
             backgroundColor: colors.background,
             borderTopColor: colors.border,
           },
@@ -133,14 +266,26 @@ export default function TabLayout() {
           name="index"
           options={{
             title: "Home",
-            tabBarIcon: () => <Text style={s.text}>⌂</Text>,
+            tabBarIcon: ({ focused }) => (
+              <Ionicons
+                name={focused ? "home" : "home-outline"}
+                size={22}
+                color={focused ? colors.gold : colors.muted}
+              />
+            ),
           }}
         />
         <Tabs.Screen
           name="shop"
           options={{
             title: "Shop",
-            tabBarIcon: () => <Text style={s.text}>◇</Text>,
+            tabBarIcon: ({ focused }) => (
+              <Ionicons
+                name={focused ? "grid" : "grid-outline"}
+                size={22}
+                color={focused ? colors.gold : colors.muted}
+              />
+            ),
           }}
         />
         <Tabs.Screen
@@ -148,7 +293,13 @@ export default function TabLayout() {
           options={{
             title: "Wishlist",
             tabBarBadge: userId && wishCount ? wishCount : undefined,
-            tabBarIcon: () => <Text style={s.text}>♡</Text>,
+            tabBarIcon: ({ focused }) => (
+              <Ionicons
+                name={focused ? "heart" : "heart-outline"}
+                size={22}
+                color={focused ? colors.gold : colors.muted}
+              />
+            ),
           }}
         />
         <Tabs.Screen
@@ -156,14 +307,26 @@ export default function TabLayout() {
           options={{
             title: "Bag",
             tabBarBadge: userId && bagCount ? bagCount : undefined,
-            tabBarIcon: () => <Text style={s.text}>▢</Text>,
+            tabBarIcon: ({ focused }) => (
+              <Ionicons
+                name={focused ? "bag" : "bag-outline"}
+                size={22}
+                color={focused ? colors.gold : colors.muted}
+              />
+            ),
           }}
         />
         <Tabs.Screen
           name="account"
           options={{
             title: "Account",
-            tabBarIcon: () => <Text style={s.text}>○</Text>,
+            tabBarIcon: ({ focused }) => (
+              <Ionicons
+                name={focused ? "person" : "person-outline"}
+                size={22}
+                color={focused ? colors.gold : colors.muted}
+              />
+            ),
           }}
         />
       </Tabs>

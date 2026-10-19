@@ -10,6 +10,14 @@ export function imageUrl(value: unknown, origin: string): string | undefined {
     return imageUrl(v.url || v.secure_url || v.src, origin);
   }
   if (typeof value !== "string") return;
+  // Website CMS categories can contain embedded raster images. Never allow
+  // SVG/HTML data URLs or unbounded payloads through the native image surface.
+  if (value.startsWith("data:")) {
+    return value.length <= 4 * 1024 * 1024 &&
+      /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value)
+      ? value
+      : undefined;
+  }
   try {
     const url = new URL(value, origin);
     return url.protocol === "https:" && !url.username && !url.password
@@ -79,17 +87,20 @@ export function normalizeRelatedProducts(
 ): Product[] {
   if (!Array.isArray(candidates)) return [];
   const seen = new Set<string>([currentProductId]);
-  return candidates.filter((item): item is Product => {
-    if (
-      !item ||
-      typeof item !== "object" ||
-      typeof item._id !== "string" ||
-      typeof item.name !== "string" ||
-      !Number.isFinite(item.price) ||
-      item.isDeleted === true ||
-      seen.has(item._id)
-    ) return false;
-    seen.add(item._id);
-    return true;
-  }).slice(0, 8);
+  return candidates
+    .filter((item): item is Product => {
+      if (
+        !item ||
+        typeof item !== "object" ||
+        typeof item._id !== "string" ||
+        typeof item.name !== "string" ||
+        !Number.isFinite(item.price) ||
+        item.isDeleted === true ||
+        seen.has(item._id)
+      )
+        return false;
+      seen.add(item._id);
+      return true;
+    })
+    .slice(0, 8);
 }

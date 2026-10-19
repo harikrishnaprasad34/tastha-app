@@ -29,12 +29,46 @@ export default function Root() {
                 headerBackButtonDisplayMode: "minimal",
               }}
             >
-              <Stack.Screen name="website/index" options={{ title: "Explore Tastha" }} />
-              <Stack.Screen name="website/[page]" options={{ title: "Tastha workspace" }} />
+              <Stack.Screen
+                name="website/index"
+                options={{ title: "Explore Tastha" }}
+              />
+              <Stack.Screen
+                name="website/[page]"
+                options={{ title: "Tastha workspace" }}
+              />
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen
                 name="product/[id]"
                 options={{ title: "Tastha collection" }}
+              />
+              <Stack.Screen
+                name="otp"
+                options={{ title: "WhatsApp sign in" }}
+              />
+              <Stack.Screen
+                name="recovery"
+                options={{ title: "Reset password" }}
+              />
+              <Stack.Screen
+                name="security"
+                options={{ title: "Account security" }}
+              />
+              <Stack.Screen
+                name="saved-looks"
+                options={{ title: "Saved looks" }}
+              />
+              <Stack.Screen
+                name="contact"
+                options={{ title: "Contact Tastha" }}
+              />
+              <Stack.Screen
+                name="review"
+                options={{ title: "Write a review" }}
+              />
+              <Stack.Screen
+                name="payment-status"
+                options={{ title: "Payment status" }}
               />
               <Stack.Screen name="login" options={{ title: "Sign in" }} />
               <Stack.Screen

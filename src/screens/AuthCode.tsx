@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
+import { ApiError } from "../api/client";
 import { api, session } from "../api/runtime";
 import type { Session } from "../models";
 import { Button, ErrorBox, Field, styles as s } from "../components/ui";
@@ -54,13 +55,19 @@ export function AuthCode({
       setChallenge(result.challenge || "");
       setOtp("");
       setNotice(
-        result.whatsappDelivered === false
-          ? "The code could not be delivered. Please retry later."
-          : result.message ||
-              "Check your registered WhatsApp number for the code.",
+        result.message ||
+          (result.whatsappDelivered === false
+            ? "WhatsApp delivery is not confirmed. Use a code you have received, retry later, or sign in with email or username and password."
+            : "Check your registered WhatsApp number for the code."),
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Code request failed.");
+      setError(
+        e instanceof ApiError && e.status === 409
+          ? "This number is linked to more than one account. Sign in with your registered email or username and password."
+          : e instanceof Error
+            ? e.message
+            : "Code request failed.",
+      );
     } finally {
       setBusy(false);
     }
@@ -114,11 +121,17 @@ export function AuthCode({
       <Text style={s.title}>
         {recovery ? "Reset password" : "Sign in with WhatsApp"}
       </Text>
+      <Text style={s.muted}>
+        {recovery
+          ? "Enter your registered email to start password recovery."
+          : "We’ll send a six-digit code to your registered WhatsApp number. You can also sign in with your email and password."}
+      </Text>
       <Field
         label={recovery ? "Registered email address" : "Mobile number"}
         value={identifier}
         onChangeText={(value) => {
           setIdentifier(value);
+          setError("");
           setRequested("");
           setChallenge("");
           setOtp("");
