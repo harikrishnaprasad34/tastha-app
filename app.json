@@ -2,8 +2,8 @@
   "expo": {
     "name": "Tastha",
     "slug": "tastha-app",
-    "version": "1.0.4",
-    "orientation": "portrait",
+    "version": "1.0.5",
+    "orientation": "default",
     "icon": "./assets/tastha-mark.png",
     "userInterfaceStyle": "dark",
     "ios": {
@@ -23,7 +23,7 @@
         "foregroundImage": "./assets/tastha-mark.png",
         "backgroundColor": "#0A0B0E"
       },
-      "versionCode": 5
+      "versionCode": 6
     },
     "web": {
       "favicon": "./assets/tastha-mark.png"

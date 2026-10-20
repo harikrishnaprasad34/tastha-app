@@ -51,6 +51,23 @@ export function linePayload(lines: CartLine[]) {
     variantSku: l.variantSku,
   }));
 }
+export function cartLineImage(line: CartLine, origin: string) {
+  const variants = line.product.variants || [];
+  const variant = variants.find((v) =>
+    line.variantSku
+      ? v.sku === line.variantSku
+      : v.size === line.selectedSize && v.color === line.selectedColor,
+  );
+  // Never display another colour's thumbnail when a selected variant has no image.
+  return productImages(
+    line.product,
+    origin,
+    variant ||
+      (variants.length
+        ? { size: line.selectedSize || "", color: line.selectedColor || "" }
+        : undefined),
+  )[0];
+}
 export const money = (value: number) =>
   Number.isFinite(value)
     ? "₹" + value.toLocaleString("en-IN", { maximumFractionDigits: 2 })
@@ -79,17 +96,20 @@ export function normalizeRelatedProducts(
 ): Product[] {
   if (!Array.isArray(candidates)) return [];
   const seen = new Set<string>([currentProductId]);
-  return candidates.filter((item): item is Product => {
-    if (
-      !item ||
-      typeof item !== "object" ||
-      typeof item._id !== "string" ||
-      typeof item.name !== "string" ||
-      !Number.isFinite(item.price) ||
-      item.isDeleted === true ||
-      seen.has(item._id)
-    ) return false;
-    seen.add(item._id);
-    return true;
-  }).slice(0, 8);
+  return candidates
+    .filter((item): item is Product => {
+      if (
+        !item ||
+        typeof item !== "object" ||
+        typeof item._id !== "string" ||
+        typeof item.name !== "string" ||
+        !Number.isFinite(item.price) ||
+        item.isDeleted === true ||
+        seen.has(item._id)
+      )
+        return false;
+      seen.add(item._id);
+      return true;
+    })
+    .slice(0, 8);
 }

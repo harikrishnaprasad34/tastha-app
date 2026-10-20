@@ -1,6 +1,6 @@
 {
   "name": "tastha-app",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "main": "index.ts",
   "dependencies": {
     "@reduxjs/toolkit": "^2.13.0",

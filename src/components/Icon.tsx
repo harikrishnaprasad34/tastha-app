@@ -3,6 +3,13 @@ import type { ColorValue } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { colors } from "../config";
 const paths = {
+  plus: "M12 5v14M5 12h14",
+  minus: "M5 12h14",
+  close: "m6 6 12 12M6 18 18 6",
+  arrow: "M4 12h16m-6-6 6 6-6 6",
+  tag: "M3 3h8l10 10-8 8L3 11V3Zm4 4h.01",
+  logout: "M9 3H4v18h5M10 12h11m-5-5 5 5-5 5",
+  shirt: "m8 3-6 4 3 5 3-2v11h8V10l3 2 3-5-6-4c0 4-8 4-8 0Z",
   home: "M3 10 12 3l9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z",
   shop: "M3 3h7v7H3ZM14 3h7v7h-7ZM3 14h7v7H3ZM14 14h7v7h-7Z",
   heart:
@@ -30,17 +37,19 @@ export function Icon({
   name,
   size = 24,
   color = colors.gold,
+  filled = false,
 }: {
   name: IconName;
   size?: number;
   color?: ColorValue | null;
+  filled?: boolean;
 }) {
   return (
     <Svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      fill="none"
+      fill={filled ? (color ?? colors.gold) : "none"}
       stroke={color ?? colors.gold}
       strokeWidth={1.8}
       strokeLinecap="round"

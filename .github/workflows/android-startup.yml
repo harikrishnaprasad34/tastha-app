@@ -61,6 +61,8 @@ jobs:
             adb exec-out screencap -p > startup-results/screen.png
             adb shell pidof com.tastha.app
             ! grep -E 'FATAL EXCEPTION|Fatal signal|ReactNativeJS:.*(Error:|Exception)' startup-results/logcat.txt
+            python3 scripts/check-responsive-ui.py
+            ! grep -E 'FATAL EXCEPTION|Fatal signal|ReactNativeJS:.*(Error:|Exception)' startup-results/responsive-logcat.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:

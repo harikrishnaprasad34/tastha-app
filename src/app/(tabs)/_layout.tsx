@@ -7,7 +7,7 @@ import {
 import { money } from "../../shared/catalog";
 import React, { useEffect, useRef } from "react";
 import { Pressable, Text, View } from "react-native";
-import { Link, useRouter } from "expo-router";
+import { Link, useRouter, usePathname } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppDispatch, useAppSelector } from "../../state";
 import { fetchBag, fetchWishlist } from "../../state/store";
@@ -32,7 +32,9 @@ function StoreTabBar(props: BottomTabBarProps) {
             marginHorizontal: 12,
             marginTop: 8,
             marginBottom: 6,
-            padding: 14,
+            paddingHorizontal: 14,
+            paddingVertical: 10,
+            minHeight: 48,
             borderRadius: 14,
             backgroundColor: colors.gold,
             flexDirection: "row",
@@ -47,11 +49,11 @@ function StoreTabBar(props: BottomTabBarProps) {
               {money(bag?.totalAmount ?? NaN)}
             </Text>
             <Text style={{ color: colors.background, fontSize: 11 }}>
-              Final payable total at checkout
+              Bag subtotal · total at checkout
             </Text>
           </View>
           <Text style={{ color: colors.background, fontWeight: "700" }}>
-            View bag →
+            View bag
           </Text>
         </Pressable>
       ) : null}
@@ -75,6 +77,8 @@ export default function TabLayout() {
     }
   }, [dispatch, userId]);
   const router = useRouter();
+  const pathname = usePathname();
+  const compact = /\/(?:account|bag)$/.test(pathname);
   const prompted = useRef(false);
   useEffect(() => {
     if (!prompted.current) {
@@ -84,41 +88,125 @@ export default function TabLayout() {
   }, [location, router]);
   return (
     <View style={s.screen}>
-      <SafeAreaView edges={["top", "left", "right"]} style={s.header}>
-        <Text
-          style={[
-            s.heading,
-            { color: colors.gold, letterSpacing: 4, fontSize: 17 },
-          ]}
-        >
-          TASTHA
-        </Text>
-        <Link href="/location" asChild>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Change delivery location"
-            style={{ minHeight: 44, justifyContent: "center" }}
+      <SafeAreaView
+        edges={["top", "left", "right"]}
+        style={[s.header, { paddingHorizontal: 16, paddingVertical: 6 }]}
+      >
+        {compact ? (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
           >
-            <Text style={[s.small, { color: colors.gold }]}>DELIVER TO</Text>
-            <Text numberOfLines={1} style={[s.text, { fontWeight: "600" }]}>
-              {" "}
-              {location?.label || "Choose your location"}{" "}
-              {location?.pinCode || ""} ▾
+            <Text
+              style={{
+                color: colors.gold,
+                fontSize: 14,
+                letterSpacing: 3,
+                fontWeight: "700",
+              }}
+            >
+              TASTHA
             </Text>
-          </Pressable>
-        </Link>
-        <Link href="/search" asChild>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Search products"
-            style={[s.pill, { minHeight: 44, justifyContent: "center" }]}
-          >
-            <View style={[s.row, { gap: 8 }]}>
-              <Icon name="search" size={20} color={colors.muted} />
-              <Text style={s.muted}>Search products and collections</Text>
+            <Link href="/search" asChild>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Search products"
+                style={{
+                  minWidth: 44,
+                  minHeight: 44,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Icon name="search" size={21} color={colors.text} />
+              </Pressable>
+            </Link>
+          </View>
+        ) : (
+          <>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
+            >
+              <Icon name="location" size={21} />
+              <Link href="/location" asChild>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Change delivery location"
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    minHeight: 44,
+                    justifyContent: "center",
+                    gap: 3,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: colors.gold,
+                      fontSize: 10,
+                      letterSpacing: 1,
+                      fontWeight: "700",
+                    }}
+                  >
+                    TASTHA · DELIVER TO
+                  </Text>
+                  <Text
+                    numberOfLines={1}
+                    style={[s.text, { fontWeight: "600" }]}
+                  >
+                    {location?.label || "Choose your location"}
+                    {location?.pinCode &&
+                    !location.label.includes(location.pinCode)
+                      ? " " + location.pinCode
+                      : ""}{" "}
+                    ▾
+                  </Text>
+                </Pressable>
+              </Link>
+              <Link href="/(tabs)/account" asChild>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Open account"
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 22,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: colors.panel,
+                  }}
+                >
+                  <Icon name="person" size={21} />
+                </Pressable>
+              </Link>
             </View>
-          </Pressable>
-        </Link>
+            <Link href="/search" asChild>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Search products"
+                style={{
+                  minHeight: 44,
+                  backgroundColor: colors.elevated,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderRadius: 12,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingHorizontal: 12,
+                  gap: 10,
+                }}
+              >
+                <Icon name="search" size={18} color={colors.muted} />
+                <Text numberOfLines={1} style={[s.muted, { flex: 1 }]}>
+                  Search shirts, outfits and more
+                </Text>
+              </Pressable>
+            </Link>
+          </>
+        )}
       </SafeAreaView>
       <Tabs
         tabBar={(props) => <StoreTabBar {...props} />}
@@ -126,6 +214,12 @@ export default function TabLayout() {
           headerShown: false,
           tabBarActiveTintColor: colors.gold,
           tabBarInactiveTintColor: colors.muted,
+          tabBarLabelStyle: { fontSize: 10, fontWeight: "500" },
+          tabBarBadgeStyle: {
+            backgroundColor: colors.gold,
+            color: colors.background,
+            fontSize: 10,
+          },
           tabBarStyle: {
             backgroundColor: colors.background,
             borderTopColor: colors.border,
@@ -138,7 +232,7 @@ export default function TabLayout() {
           options={{
             title: "Home",
             tabBarIcon: ({ color, size }) => (
-              <Icon name="home" color={color} size={size} />
+              <Icon name="home" color={color} size={Math.min(size, 22)} />
             ),
           }}
         />
@@ -147,7 +241,7 @@ export default function TabLayout() {
           options={{
             title: "Shop",
             tabBarIcon: ({ color, size }) => (
-              <Icon name="shop" color={color} size={size} />
+              <Icon name="shop" color={color} size={Math.min(size, 22)} />
             ),
           }}
         />
@@ -157,7 +251,7 @@ export default function TabLayout() {
             title: "Wishlist",
             tabBarBadge: userId && wishCount ? wishCount : undefined,
             tabBarIcon: ({ color, size }) => (
-              <Icon name="heart" color={color} size={size} />
+              <Icon name="heart" color={color} size={Math.min(size, 22)} />
             ),
           }}
         />
@@ -167,7 +261,7 @@ export default function TabLayout() {
             title: "Bag",
             tabBarBadge: userId && bagCount ? bagCount : undefined,
             tabBarIcon: ({ color, size }) => (
-              <Icon name="bag" color={color} size={size} />
+              <Icon name="bag" color={color} size={Math.min(size, 22)} />
             ),
           }}
         />
@@ -176,7 +270,7 @@ export default function TabLayout() {
           options={{
             title: "Account",
             tabBarIcon: ({ color, size }) => (
-              <Icon name="person" color={color} size={size} />
+              <Icon name="person" color={color} size={Math.min(size, 22)} />
             ),
           }}
         />

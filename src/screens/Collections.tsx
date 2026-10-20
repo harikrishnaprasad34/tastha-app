@@ -1,5 +1,13 @@
+import { shoppingLayout } from "../shared/layout";
 import React, { useCallback } from "react";
-import { FlatList, Image, Pressable, Text, View } from "react-native";
+import {
+  FlatList,
+  Image,
+  Pressable,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { useAppDispatch, useAppSelector } from "../state";
 import {
   fetchCollections,
@@ -68,7 +76,7 @@ export function Collections({ navigate }: { navigate: Navigate }) {
             {image ? (
               <Image
                 source={{ uri: image }}
-                style={{ width: "100%", height: 210, resizeMode: "cover" }}
+                style={{ width: "100%", aspectRatio: 2, resizeMode: "cover" }}
               />
             ) : null}
             <View style={{ padding: 16, gap: 8 }}>
@@ -95,6 +103,8 @@ export function CollectionProducts({
 }) {
   const dispatch = useAppDispatch();
   const pin = useAppSelector((x) => x.location?.pinCode || "");
+  const { width, fontScale } = useWindowDimensions();
+  const layout = shoppingLayout(width, fontScale);
   const detail = useAppSelector((x) => x.collections.detail);
   const key = collectionKey(slug, pin);
   const data = detail.key === key ? detail.data : null;
@@ -108,9 +118,9 @@ export function CollectionProducts({
     data?.delivery?.configured && data.delivery.serviceable !== true;
   return (
     <FlatList
-      key={key}
+      key={key + layout.columns}
       data={data?.products || []}
-      numColumns={2}
+      numColumns={layout.columns}
       keyExtractor={(p) => p._id}
       contentContainerStyle={[s.content, { paddingHorizontal: 10 }]}
       refreshing={detail.loading}
@@ -150,7 +160,7 @@ export function CollectionProducts({
         ) : undefined
       }
       renderItem={({ item }) => (
-        <View style={{ width: "50%" }}>
+        <View style={{ width: `${100 / layout.columns}%` }}>
           <ProductCard product={item} navigate={navigate} />
         </View>
       )}

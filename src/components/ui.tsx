@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  Platform,
   ActivityIndicator,
   Pressable,
   Text,
@@ -12,15 +11,23 @@ import {
 import { colors as c } from "../config";
 export const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: c.background },
-  content: { padding: 20, gap: 16, paddingBottom: 40 },
+  content: {
+    padding: 16,
+    gap: 14,
+    paddingBottom: 28,
+    width: "100%",
+    maxWidth: 1040,
+    alignSelf: "center",
+  },
   title: {
-    fontSize: 30,
-    fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
+    fontSize: 22,
+    fontWeight: "700",
+    letterSpacing: -0.4,
     color: c.text,
   },
-  heading: { fontSize: 21, color: c.text, fontWeight: "600" },
-  text: { color: c.text, fontSize: 16 },
-  muted: { color: c.muted, fontSize: 14, lineHeight: 21 },
+  heading: { fontSize: 17, color: c.text, fontWeight: "600" },
+  text: { color: c.text, fontSize: 14, lineHeight: 20 },
+  muted: { color: c.muted, fontSize: 13, lineHeight: 19 },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -28,10 +35,10 @@ export const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   panel: {
-    padding: 16,
+    padding: 14,
     backgroundColor: c.panel,
     borderRadius: 14,
-    gap: 12,
+    gap: 10,
     borderWidth: 1,
     borderColor: c.border,
   },
@@ -40,29 +47,36 @@ export const styles = StyleSheet.create({
     borderColor: c.border,
     borderWidth: 1,
     borderRadius: 10,
-    padding: 14,
-    fontSize: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    minHeight: 46,
+    fontSize: 14,
     backgroundColor: c.panel,
   },
   button: {
     backgroundColor: c.gold,
-    padding: 15,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    justifyContent: "center",
     borderRadius: 10,
     alignItems: "center",
-    minHeight: 50,
+    minHeight: 46,
   },
   buttonText: {
     color: c.background,
     fontWeight: "700",
-    fontSize: 16,
+    fontSize: 14,
     textAlign: "center",
     flexShrink: 1,
   },
-  outline: { backgroundColor: c.panel, borderWidth: 1, borderColor: c.gold },
+  outline: { backgroundColor: c.panel, borderWidth: 1, borderColor: c.border },
   outlineText: { color: c.gold },
   error: { color: c.error, lineHeight: 22 },
   pill: {
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minHeight: 44,
+    justifyContent: "center",
     borderColor: c.border,
     borderWidth: 1,
     borderRadius: 10,
@@ -74,12 +88,12 @@ export const styles = StyleSheet.create({
     resizeMode: "contain",
     backgroundColor: c.panel,
   },
-  price: { fontSize: 20, color: c.gold, fontWeight: "600" },
+  price: { fontSize: 17, color: c.gold, fontWeight: "600" },
   grow: { flex: 1 },
   header: { padding: 14, borderBottomWidth: 1, borderColor: c.border, gap: 8 },
   tabs: { flexDirection: "row", borderTopWidth: 1, borderColor: c.border },
   tab: { flex: 1, paddingVertical: 18, alignItems: "center" },
-  small: { color: c.muted, fontSize: 12 },
+  small: { color: c.muted, fontSize: 12, lineHeight: 17 },
   divider: { height: 1, backgroundColor: c.border },
   disabled: { opacity: 0.45 },
 });
@@ -109,7 +123,7 @@ export function Button({
       ]}
     >
       {busy ? (
-        <ActivityIndicator color={c.gold} />
+        <ActivityIndicator color={outline ? c.gold : c.background} />
       ) : (
         <Text style={[styles.buttonText, outline && styles.outlineText]}>
           {title}

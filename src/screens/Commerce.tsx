@@ -1,9 +1,20 @@
+import { shoppingLayout } from "../shared/layout";
 import { Icon, type IconName } from "../components/Icon";
 import { useRevalidateOnFocus } from "../hooks/useRevalidateOnFocus";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, Text, View, Pressable, Alert } from "react-native";
+import {
+  ScrollView,
+  Text,
+  View,
+  Pressable,
+  Alert,
+  Image,
+  FlatList,
+  useWindowDimensions,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { shareInvoice } from "../api/invoice";
+import { API_ORIGIN, colors } from "../config";
 import { api, session } from "../api/runtime";
 import {
   deliveryEligibility,
@@ -23,10 +34,9 @@ import {
   fetchWishlist,
   fetchOrders,
   changeBag,
-  changeWishlist,
 } from "../state/store";
 import type { Quote, PaymentMethod, Order } from "../models";
-import { linePayload, money } from "../shared/catalog";
+import { linePayload, money, cartLineImage } from "../shared/catalog";
 import { isValidCheckoutQuote } from "../shared/checkoutQuote";
 import {
   filterCustomerOrders,
@@ -73,168 +83,339 @@ export function Bag({ navigate }: { navigate: Navigate }) {
     }
   }
   return (
-    <ScrollView
-      contentContainerStyle={s.content}
-      keyboardShouldPersistTaps="handled"
-    >
-      <Text style={s.title}>Your bag</Text>
-      {pending.bag ? <Loading /> : null}
-      <ErrorBox message={errors.bag} retry={() => dispatch(fetchBag())} />
-      {bag?.items.map((line) => (
-        <View key={line._id} style={s.panel}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => navigate("Product", line.product._id)}
-          >
-            <Text style={s.heading}>{line.product.name}</Text>
-          </Pressable>
-          <Text style={s.muted}>
-            {[line.selectedColor, line.selectedSize]
-              .filter(Boolean)
-              .join(" · ")}
-          </Text>
-          <Text style={s.price}>
-            {money(line.price)} × {line.quantity}
-          </Text>
-          {line.isOutOfStock ||
-          line.inventoryUnknown ||
-          line.isQuantityExceeded ? (
-            <Text style={s.error}>
-              This selection needs a stock check. Reduce the quantity or remove
-              it.
+    <View style={s.screen}>
+      <ScrollView
+        contentContainerStyle={s.content}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={[s.row, { justifyContent: "space-between" }]}>
+          <Text style={s.title}>Your bag</Text>
+          {bag ? (
+            <Text style={s.muted}>
+              {bag.items.reduce((n, line) => n + line.quantity, 0)} items
             </Text>
           ) : null}
-          <View style={s.row}>
-            <Button
-              title="−"
-              disabled={busy}
-              onPress={() =>
-                update({
-                  kind: "quantity",
-                  itemId: line._id,
-                  quantity: line.quantity - 1,
-                })
-              }
-            />
-            <Text
-              accessibilityLabel={"Quantity " + line.quantity}
-              style={s.text}
-            >
-              {line.quantity}
-            </Text>
-            <Button
-              title="+"
-              disabled={busy}
-              onPress={() =>
-                update({
-                  kind: "quantity",
-                  itemId: line._id,
-                  quantity: line.quantity + 1,
-                })
-              }
-            />
-            <Button
-              title="Remove"
-              outline
-              disabled={busy}
-              onPress={() =>
-                update({ kind: "quantity", itemId: line._id, quantity: 0 })
-              }
-            />
-          </View>
         </View>
-      ))}
-      {bag && !bag.items.length ? <Empty title="Your bag is empty" /> : null}
-      <ErrorBox message={error} />
-      {bag?.items.length ? (
-        <>
-          {bag.appliedCoupon ? (
+        {pending.bag ? <Loading /> : null}
+        <ErrorBox message={errors.bag} retry={() => dispatch(fetchBag())} />
+        <View style={{ gap: 10 }}>
+          {bag?.items.map((line) => {
+            const image = cartLineImage(line, API_ORIGIN);
+            return (
+              <View key={line._id} style={s.panel}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    gap: 12,
+                    alignItems: "flex-start",
+                  }}
+                >
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={"View " + line.product.name}
+                    onPress={() => navigate("Product", line.product._id)}
+                    style={{
+                      width: 70,
+                      height: 90,
+                      backgroundColor: colors.elevated,
+                      borderRadius: 10,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {image ? (
+                      <Image
+                        source={{ uri: image }}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          resizeMode: "contain",
+                        }}
+                      />
+                    ) : (
+                      <Icon name="shirt" size={28} color={colors.muted} />
+                    )}
+                  </Pressable>
+                  <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => navigate("Product", line.product._id)}
+                    >
+                      <Text style={[s.text, { fontWeight: "600" }]}>
+                        {line.product.name}
+                      </Text>
+                    </Pressable>
+                    <Text style={s.small}>
+                      {[line.selectedColor, line.selectedSize]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </Text>
+                    <Text style={s.price}>{money(line.price)}</Text>
+                  </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      "Remove " + line.product.name + " from bag"
+                    }
+                    accessibilityState={{ disabled: busy }}
+                    disabled={busy}
+                    onPress={() =>
+                      update({
+                        kind: "quantity",
+                        itemId: line._id,
+                        quantity: 0,
+                      })
+                    }
+                    style={{
+                      minWidth: 44,
+                      minHeight: 44,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      opacity: busy ? 0.45 : 1,
+                    }}
+                  >
+                    <Icon name="close" size={18} color={colors.muted} />
+                  </Pressable>
+                </View>
+                {line.isOutOfStock ||
+                line.inventoryUnknown ||
+                line.isQuantityExceeded ? (
+                  <Text style={s.error}>
+                    This selection needs a stock check. Reduce the quantity or
+                    remove it.
+                  </Text>
+                ) : null}
+                <View
+                  style={[s.row, { justifyContent: "space-between", gap: 8 }]}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      borderRadius: 10,
+                    }}
+                  >
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        "Decrease quantity of " + line.product.name
+                      }
+                      accessibilityState={{ disabled: busy }}
+                      disabled={busy}
+                      onPress={() =>
+                        update({
+                          kind: "quantity",
+                          itemId: line._id,
+                          quantity: line.quantity - 1,
+                        })
+                      }
+                      style={{
+                        width: 44,
+                        minHeight: 44,
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Icon name="minus" size={17} />
+                    </Pressable>
+                    <Text
+                      accessibilityLabel={"Quantity " + line.quantity}
+                      style={[s.text, { minWidth: 24, textAlign: "center" }]}
+                    >
+                      {line.quantity}
+                    </Text>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        "Increase quantity of " + line.product.name
+                      }
+                      accessibilityState={{ disabled: busy }}
+                      disabled={busy}
+                      onPress={() =>
+                        update({
+                          kind: "quantity",
+                          itemId: line._id,
+                          quantity: line.quantity + 1,
+                        })
+                      }
+                      style={{
+                        width: 44,
+                        minHeight: 44,
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Icon name="plus" size={17} />
+                    </Pressable>
+                  </View>
+                  <Text style={s.muted}>
+                    {money(line.price * line.quantity)}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+        {bag && !bag.items.length ? (
+          <>
+            <Empty
+              title="Your bag is empty"
+              detail="Find a piece you love and make it yours."
+            />
+            <Button title="Explore styles" onPress={() => navigate("Shop")} />
+          </>
+        ) : null}
+        <ErrorBox message={error} />
+        {bag?.items.length ? (
+          <>
             <View style={s.panel}>
-              <Text style={s.text}>Applied coupon: {bag.appliedCoupon}</Text>
+              <View style={s.row}>
+                <Icon name="tag" size={19} />
+                <Text style={s.heading}>Offers & coupons</Text>
+              </View>
+              {bag.appliedCoupon ? (
+                <>
+                  <Text style={s.text}>Applied: {bag.appliedCoupon}</Text>
+                  <Button
+                    title="Remove coupon"
+                    outline
+                    busy={busy}
+                    onPress={() => update({ kind: "removeCoupon" })}
+                  />
+                </>
+              ) : null}
+              <View style={[s.row, { alignItems: "flex-end", gap: 10 }]}>
+                <View style={{ flex: 1, minWidth: 140 }}>
+                  <Field
+                    label="Coupon code"
+                    value={coupon}
+                    onChangeText={setCoupon}
+                    autoCapitalize="characters"
+                  />
+                </View>
+                <Button
+                  title="Apply"
+                  outline
+                  busy={busy}
+                  disabled={!coupon.trim()}
+                  onPress={() => update({ kind: "coupon", couponCode: coupon })}
+                />
+              </View>
+            </View>
+            <View style={s.panel}>
+              <Text style={s.heading}>Bill summary</Text>
+              <View style={[s.row, { justifyContent: "space-between" }]}>
+                <Text style={s.text}>Bag total</Text>
+                <Text style={[s.text, { fontWeight: "700" }]}>
+                  {money(bag.totalAmount)}
+                </Text>
+              </View>
+              <Text style={s.small}>
+                Delivery and applicable tax are confirmed at checkout.
+              </Text>
+            </View>
+            <View style={[s.row, { justifyContent: "center" }]}>
+              <Icon name="shield" size={16} color={colors.muted} />
+              <Text style={s.small}>Choose delivery & payment at checkout</Text>
+            </View>
+          </>
+        ) : null}
+      </ScrollView>
+      {bag?.items.length ? (
+        <View
+          style={{
+            borderTopWidth: 1,
+            borderColor: colors.border,
+            backgroundColor: colors.panel,
+          }}
+        >
+          <View
+            style={[
+              s.content,
+              s.row,
+              {
+                paddingVertical: 12,
+                paddingBottom: 12,
+                justifyContent: "space-between",
+              },
+            ]}
+          >
+            <View style={{ flex: 1, minWidth: 100, gap: 2 }}>
+              <Text style={s.small}>Bag total</Text>
+              <Text style={s.price}>{money(bag.totalAmount)}</Text>
+            </View>
+            <View style={{ flex: 1, minWidth: 150 }}>
               <Button
-                title="Remove coupon"
-                outline
-                busy={busy}
-                onPress={() => update({ kind: "removeCoupon" })}
+                title="Checkout"
+                disabled={
+                  busy ||
+                  !!pending.bag ||
+                  !!errors.bag ||
+                  bag.items.some(
+                    (x) =>
+                      x.isOutOfStock ||
+                      x.inventoryUnknown ||
+                      x.isQuantityExceeded,
+                  )
+                }
+                onPress={() => navigate("Checkout")}
               />
             </View>
-          ) : null}
-          <Field
-            label="Coupon code"
-            value={coupon}
-            onChangeText={setCoupon}
-            autoCapitalize="characters"
-          />
-          <Button
-            title={bag.appliedCoupon ? "Change coupon" : "Apply coupon"}
-            outline
-            busy={busy}
-            disabled={!coupon.trim()}
-            onPress={() => update({ kind: "coupon", couponCode: coupon })}
-          />
-          <Text style={s.price}>Bag total {money(bag.totalAmount)}</Text>
-          <Text style={s.muted}>
-            The delivery charge and applicable tax are confirmed at checkout.
-          </Text>
-          <Button
-            title="Continue to checkout"
-            disabled={
-              busy ||
-              bag.items.some(
-                (x) =>
-                  x.isOutOfStock || x.inventoryUnknown || x.isQuantityExceeded,
-              )
-            }
-            onPress={() => navigate("Checkout")}
-          />
-        </>
+          </View>
+        </View>
       ) : null}
-    </ScrollView>
+    </View>
   );
 }
 export function Wishlist({ navigate }: { navigate: Navigate }) {
   const dispatch = useAppDispatch();
   const user = useAppSelector((x) => x.auth.user);
-  const { wishlist, pending, errors, busy } = useAppSelector((x) => x.commerce);
-  const [error, setError] = useState("");
+  const { wishlist, pending, errors } = useAppSelector((x) => x.commerce);
+  const { width, fontScale } = useWindowDimensions();
+  const layout = shoppingLayout(width, fontScale);
   useEffect(() => {
     if (user) dispatch(fetchWishlist());
   }, [dispatch, user]);
   if (!user) return <SignIn navigate={navigate} />;
   return (
-    <ScrollView contentContainerStyle={s.content}>
-      <Text style={s.title}>Your wishlist</Text>
-      {pending.wishlist ? <Loading /> : null}
-      <ErrorBox
-        message={errors.wishlist || error}
-        retry={() => dispatch(fetchWishlist())}
-      />
-      {wishlist.map((product) => (
-        <View key={product._id}>
-          <ProductCard product={product} navigate={navigate} />
-          <Button
-            title="Choose variant & add to bag"
-            onPress={() => navigate("Product", product._id)}
-          />
-          <Button
-            title="Remove from wishlist"
-            outline
-            disabled={busy}
-            onPress={() =>
-              dispatch(changeWishlist({ id: product._id, remove: true }))
-                .unwrap()
-                .catch((e) => setError(e.message))
-            }
+    <FlatList
+      key={"wishlist-" + layout.columns}
+      data={wishlist}
+      numColumns={layout.columns}
+      keyExtractor={(p) => p._id}
+      contentContainerStyle={[
+        s.content,
+        { paddingHorizontal: layout.padding - 4 },
+      ]}
+      ListHeaderComponent={
+        <View style={{ gap: 12, padding: 4 }}>
+          <Text style={s.title}>Your wishlist</Text>
+          <Text style={s.muted}>{wishlist.length} saved styles</Text>
+          <ErrorBox
+            message={errors.wishlist}
+            retry={() => dispatch(fetchWishlist())}
           />
         </View>
-      ))}
-      {!pending.wishlist && !errors.wishlist && !wishlist.length ? (
-        <Empty
-          title="Save your favourites"
-          detail="Add products to your wishlist from their detail pages."
-        />
-      ) : null}
-    </ScrollView>
+      }
+      renderItem={({ item }) => (
+        <View style={{ width: `${100 / layout.columns}%` }}>
+          <ProductCard product={item} navigate={navigate} />
+        </View>
+      )}
+      ListEmptyComponent={
+        pending.wishlist ? (
+          <Loading />
+        ) : !errors.wishlist ? (
+          <Empty
+            title="Save your favourites"
+            detail="Tap the heart on a style to find it here."
+          />
+        ) : undefined
+      }
+    />
   );
 }
 export function Addresses({ navigate }: { navigate: Navigate }) {

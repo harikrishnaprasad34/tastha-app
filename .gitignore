@@ -44,3 +44,7 @@ yarn-error.*
 .env
 .env.*
 !.env.example
+
+# Python verification scripts
+__pycache__/
+*.pyc

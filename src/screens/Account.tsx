@@ -1,3 +1,4 @@
+import { MenuRow } from "../components/MenuRow";
 import { Icon, type IconName } from "../components/Icon";
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useFocusEffect } from "expo-router";
@@ -199,43 +200,122 @@ export function Account({ navigate }: { navigate: Navigate }) {
   }
   return (
     <ScrollView contentContainerStyle={s.content}>
-      <Text style={s.title}>{user ? "My Account" : "Your Tastha account"}</Text>
+      <Text style={s.title}>My account</Text>
       <ErrorBox message={profileError} />
+      <View
+        style={[
+          s.panel,
+          { flexDirection: "row", alignItems: "center", gap: 12 },
+        ]}
+      >
+        <View
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: 24,
+            backgroundColor: "#292519",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Icon name="person" size={24} />
+        </View>
+        <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+          <Text style={s.heading}>
+            {user ? user.fullName : "Welcome to Tastha"}
+          </Text>
+          <Text style={s.muted}>
+            {user ? user.email || user.phone : "Your style, saved in one place"}
+          </Text>
+        </View>
+      </View>
       {!user ? (
-        <Button title="Sign in" onPress={() => navigate("Login", "/(tabs)")} />
+        <Button
+          title="Sign in / Create account"
+          onPress={() => navigate("Login", "/(tabs)/account")}
+        />
       ) : (
         <>
-          <View style={s.panel}>
-            <Text style={s.heading}>Hello, {user.fullName}</Text>
-            <Text style={s.muted}>{user.email || user.phone}</Text>
-            <Text style={s.muted}>
-              Manage your orders, saved addresses, preferences and security.
-            </Text>
+          <Text style={s.small}>YOUR ACCOUNT</Text>
+          <View style={[s.panel, { padding: 0, gap: 0 }]}>
+            {[
+              { title: "My orders", icon: "bag", route: "Orders" },
+              {
+                title: "Profile details",
+                icon: "person",
+                route: "EditProfile",
+              },
+              {
+                title: "Saved addresses",
+                icon: "location",
+                route: "Addresses",
+              },
+              { title: "Saved looks", icon: "sparkle", route: "SavedLooks" },
+              {
+                title: "Password & security",
+                icon: "shield",
+                route: "Security",
+              },
+            ].map((item, index, items) => (
+              <MenuRow
+                key={item.route}
+                title={item.title}
+                icon={item.icon as IconName}
+                last={index === items.length - 1}
+                onPress={() => navigate(item.route)}
+              />
+            ))}
           </View>
-          <Button
-            title="My Profile"
-            outline
-            onPress={() => navigate("EditProfile")}
+        </>
+      )}
+      <Text style={s.small}>SHOPPING & SUPPORT</Text>
+      <View style={[s.panel, { padding: 0, gap: 0 }]}>
+        {[
+          {
+            title: "Delivery location",
+            detail: delivery?.label || "Choose your delivery area",
+            icon: "location",
+            route: "Location",
+          },
+          { title: "Explore collections", icon: "shirt", route: "Collections" },
+          { title: "Style studio", icon: "sparkle", route: "AI" },
+          { title: "Contact us", icon: "contact", route: "Contact" },
+          { title: "Help & FAQs", icon: "help", route: "Help", id: "faq" },
+          {
+            title: "Shipping & returns",
+            icon: "returns",
+            route: "Help",
+            id: "shipping",
+          },
+          {
+            title: "Privacy policy",
+            icon: "shield",
+            route: "Help",
+            id: "privacy",
+          },
+        ].map((item, index, items) => (
+          <MenuRow
+            key={item.title}
+            title={item.title}
+            detail={item.detail}
+            icon={item.icon as IconName}
+            last={index === items.length - 1}
+            onPress={() => navigate(item.route, item.id)}
           />
-          <Button title="My Orders" onPress={() => navigate("Orders")} />
-          <Button
-            title="Saved Addresses"
-            outline
-            onPress={() => navigate("Addresses")}
-          />
-          <Button
-            title="Saved AI Looks"
-            outline
-            onPress={() => navigate("SavedLooks")}
-          />
-          <Button
-            title="Security & Sign In"
-            outline
-            onPress={() => navigate("Security")}
-          />
-          <Button
+        ))}
+      </View>
+      <View style={[s.panel, { padding: 0, gap: 0 }]}>
+        <MenuRow
+          title="Staff workspace"
+          icon="shop"
+          last={!user}
+          onPress={() => navigate("Admin")}
+        />
+        {user ? (
+          <MenuRow
             title="Sign out"
-            outline
+            icon="logout"
+            last
             onPress={() =>
               Alert.alert(
                 "Sign out of Tastha?",
@@ -253,84 +333,21 @@ export function Account({ navigate }: { navigate: Navigate }) {
               )
             }
           />
-        </>
-      )}
-      <Button
-        title="Explore collections"
-        outline
-        onPress={() => navigate("Collections")}
-      />
-      <Button
-        title="Staff workspace"
-        outline
-        onPress={() => navigate("Admin")}
-      />
-      <Text style={s.heading}>Preferences & support</Text>
-      <View style={[s.panel, { padding: 0, gap: 0 }]}>
-        {[
-          {
-            title: "Delivery location",
-            detail: delivery?.label || "Choose your delivery area",
-            icon: "location",
-            action: () => navigate("Location"),
-          },
-          {
-            title: "Contact us",
-            detail: "Get help with your shopping",
-            icon: "contact",
-            action: () => navigate("Contact"),
-          },
-          {
-            title: "Help & FAQs",
-            detail: "Answers to common questions",
-            icon: "help",
-            action: () => navigate("Help", "faq"),
-          },
-          {
-            title: "Privacy policy",
-            detail: "How your information is handled",
-            icon: "shield",
-            action: () => navigate("Help", "privacy"),
-          },
-          {
-            title: "Shipping & returns",
-            detail: "Delivery and return information",
-            icon: "returns",
-            action: () => navigate("Help", "shipping"),
-          },
-          {
-            title: "Style studio",
-            detail: "Discover your next look",
-            icon: "sparkle",
-            action: () => navigate("AI"),
-          },
-        ].map((item, index) => (
-          <Pressable
-            key={item.title}
-            accessibilityRole="button"
-            onPress={item.action}
-            style={({ pressed }) => ({
-              padding: 16,
-              minHeight: 72,
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 12,
-              borderTopWidth: index ? 1 : 0,
-              borderColor: "#303139",
-              opacity: pressed ? 0.7 : 1,
-            })}
-          >
-            <Icon name={item.icon as IconName} />
-            <View style={{ flex: 1, gap: 4 }}>
-              <Text style={[s.text, { fontWeight: "600" }]}>{item.title}</Text>
-              <Text style={s.small} numberOfLines={2}>
-                {item.detail}
-              </Text>
-            </View>
-            <Icon name="chevron" color="#a9a9b0" size={20} />
-          </Pressable>
-        ))}
+        ) : null}
       </View>
+      <Text
+        style={[
+          s.small,
+          {
+            textAlign: "center",
+            color: "#D4AF37",
+            letterSpacing: 3,
+            paddingVertical: 8,
+          },
+        ]}
+      >
+        TASTHA
+      </Text>
     </ScrollView>
   );
 }
@@ -913,20 +930,14 @@ export function LocationPicker({ navigate }: { navigate: Navigate }) {
     >
       <Text style={s.title}>Where should we deliver?</Text>
       <Text style={s.muted}>
-        Find your nearby road or area for relevant products. Tastha asks for
-        location permission only when you choose current location.
+        Choose a delivery area to see available styles.
       </Text>
       <View style={s.panel}>
         <Text style={s.heading}>Use your current location</Text>
         <Text style={s.muted}>
-          We will suggest an address for you to check, not automatically replace
-          a saved delivery location.
+          Confirm the suggested address before you continue.
         </Text>
-        <Button
-          title="Detect my current location"
-          busy={busy}
-          onPress={detect}
-        />
+        <Button title="Use current location" busy={busy} onPress={detect} />
       </View>
       {selected ? (
         <Text style={s.muted}>

@@ -1,3 +1,5 @@
+import { Icon, type IconName } from "../components/Icon";
+import { shoppingLayout } from "../shared/layout";
 import { QuickAddSheet } from "../components/QuickAddSheet";
 import React, { useEffect, useState, useRef } from "react";
 import {
@@ -12,7 +14,6 @@ import {
 } from "react-native";
 import { SizeGuide } from "../components/SizeGuide";
 import { catalogFilterError } from "../shared/catalogFilters";
-import { StoreContact } from "../components/StoreContact";
 import { ProductReviews } from "../components/ProductReviews";
 import { api } from "../api/runtime";
 import { API_ORIGIN } from "../config";
@@ -67,10 +68,7 @@ export function ProductCard({
       : 0;
   return (
     <View
-      style={[
-        s.panel,
-        { flex: 1, minWidth: 0, margin: 5, padding: 10, gap: 10 },
-      ]}
+      style={[s.panel, { flex: 1, minWidth: 0, margin: 4, padding: 9, gap: 8 }]}
     >
       <View style={[s.row, { justifyContent: "space-between", gap: 4 }]}>
         <Text
@@ -113,9 +111,12 @@ export function ProductCard({
               );
           }}
         >
-          <Text style={{ color: "#D4AF37", fontSize: 24 }}>
-            {isSaved ? "♥" : "♡"}
-          </Text>
+          <Icon
+            filled={isSaved}
+            name="heart"
+            size={20}
+            color={isSaved ? "#D4AF37" : "#a9a9b0"}
+          />
         </Pressable>
       </View>
       <Pressable
@@ -128,19 +129,32 @@ export function ProductCard({
           <Image
             source={{ uri: image }}
             accessibilityLabel={product.name}
-            style={[s.image, { height: 170, borderRadius: 10 }]}
+            style={[
+              s.image,
+              { height: undefined, aspectRatio: 0.82, borderRadius: 9 },
+            ]}
           />
         ) : (
-          <Text style={s.muted}>Image unavailable</Text>
+          <View
+            style={{
+              aspectRatio: 0.82,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "#1c1e23",
+              borderRadius: 9,
+            }}
+          >
+            <Icon name="shirt" size={32} color="#a9a9b0" />
+          </View>
         )}
         <Text
           numberOfLines={2}
-          style={[s.text, { minHeight: 42, fontSize: 14 }]}
+          style={[s.text, { minHeight: 38, fontSize: 13 }]}
         >
           {product.name}
         </Text>
         <View style={[s.row, { gap: 6 }]}>
-          <Text style={[s.price, { fontSize: 18 }]}>
+          <Text style={[s.price, { fontSize: 15 }]}>
             {money(product.price)}
           </Text>
           {savings > 0 ? (
@@ -181,17 +195,51 @@ export function ProductCard({
   );
 }
 
+function DiscoveryChip({
+  title,
+  icon,
+  onPress,
+}: {
+  title: string;
+  icon: IconName;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => ({
+        minHeight: 44,
+        paddingHorizontal: 12,
+        paddingVertical: 9,
+        borderRadius: 22,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 7,
+        backgroundColor: "#1c1e23",
+        borderWidth: 1,
+        borderColor: "#303139",
+        opacity: pressed ? 0.65 : 1,
+      })}
+    >
+      <Icon name={icon} size={16} />
+      <Text style={[s.text, { fontSize: 12, fontWeight: "600" }]}>{title}</Text>
+    </Pressable>
+  );
+}
 export function Home({ navigate }: { navigate: Navigate }) {
   const dispatch = useAppDispatch();
   const { home, homeLoading, homeError } = useAppSelector((x) => x.catalog);
   const pin = useAppSelector((x) => x.location?.pinCode) || "";
+  const { width, fontScale } = useWindowDimensions();
+  const layout = shoppingLayout(width, fontScale);
   const [slide, setSlide] = useState(0);
   useEffect(() => {
     const job = dispatch(fetchHome(pin));
     return () => job.abort();
   }, [dispatch, pin]);
-  const banners = home?.banners || [],
-    banner = banners.length ? banners[slide % banners.length] : undefined;
+  const banners = home?.banners || [];
+  const banner = banners.length ? banners[slide % banners.length] : undefined;
   const hero = imageUrl(
     banner?.mobileImage ||
       banner?.mobileImageUrl ||
@@ -200,127 +248,267 @@ export function Home({ navigate }: { navigate: Navigate }) {
     API_ORIGIN,
   );
   return (
-    <ScrollView contentContainerStyle={s.content}>
-      <View style={[s.row, { justifyContent: "space-between" }]}>
-        <Text style={[s.muted, { color: "#D4AF37", letterSpacing: 2 }]}>
-          THE TASTHA EXPERIENCE
-        </Text>
-        <Button title="Style studio" outline onPress={() => navigate("AI")} />
-      </View>
-      <Text style={s.muted}>Less searching. More finding your style.</Text>
-      <View style={s.row}>
-        <Button
+    <ScrollView
+      contentContainerStyle={[s.content, { padding: layout.padding, gap: 20 }]}
+    >
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ gap: 8 }}
+      >
+        <DiscoveryChip
           title="New in"
-          outline
+          icon="shirt"
           onPress={() => navigate("StoreLink", "/shop?sort=newest")}
         />
-        <Button
+        <DiscoveryChip
           title="Offers"
-          outline
+          icon="tag"
           onPress={() => navigate("StoreLink", "/shop?offersOnly=true")}
         />
-        <Button
+        <DiscoveryChip
+          title="Style studio"
+          icon="sparkle"
+          onPress={() => navigate("AI")}
+        />
+        <DiscoveryChip
           title="Saved looks"
-          outline
+          icon="heart"
           onPress={() => navigate("SavedLooks")}
         />
-      </View>
+      </ScrollView>
       {homeLoading ? <Loading /> : null}
       <ErrorBox message={homeError} retry={() => dispatch(fetchHome(pin))} />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={s.row}>
-          <Button title="All styles" outline onPress={() => navigate("Shop")} />
-          {home?.categories?.map((category) => (
-            <Pressable
-              key={category.slug || category.name}
-              style={[
-                s.pill,
-                { width: 86, alignItems: "center", borderWidth: 0, padding: 6 },
-              ]}
-              accessibilityRole="button"
-              onPress={() => navigate("Shop", category.name)}
-            >
-              {imageUrl(category.image, API_ORIGIN) ? (
-                <Image
-                  source={{ uri: imageUrl(category.image, API_ORIGIN)! }}
-                  style={{
-                    width: 60,
-                    height: 60,
-                    borderRadius: 30,
-                    backgroundColor: "#121316",
-                  }}
-                  accessibilityLabel={category.name}
-                />
-              ) : null}
-              <Text
-                numberOfLines={2}
-                style={[s.small, { textAlign: "center" }]}
-              >
-                {category.name}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      </ScrollView>
       {home ? (
-        <View style={s.panel}>
+        <View
+          style={[
+            s.panel,
+            { padding: 0, overflow: "hidden", backgroundColor: "#181813" },
+          ]}
+        >
           {hero ? (
             <Image
               source={{ uri: hero }}
-              style={[s.image, { height: 280 }]}
-              resizeMode="cover"
               accessibilityLabel={banner?.title || "Tastha collection"}
+              style={{
+                width: "100%",
+                aspectRatio: width >= 720 ? 2.7 : 1.9,
+                resizeMode: "cover",
+              }}
             />
           ) : null}
-          <Text style={[s.muted, { color: "#D4AF37" }]}>
-            {banner?.eyebrow || "A WARDROBE, WITH INTENTION"}
-          </Text>
-          <Text style={s.title}>
-            {banner?.title ||
-              home.config?.headline ||
-              "Discover your next favourite"}
-          </Text>
-          <Text style={s.muted}>
-            {banner?.subtitle || home.config?.description}
-          </Text>
-          <Button
-            title={banner?.ctaText || "Discover the collection"}
-            onPress={() =>
-              navigate("StoreLink", banner?.ctaLink || banner?.link || "/shop")
-            }
-          />
-          {banners.length > 1 ? (
-            <View style={s.row}>
+          <View style={{ padding: 16, gap: 8 }}>
+            <Text
+              style={{
+                fontSize: 10,
+                letterSpacing: 1.5,
+                color: "#D4AF37",
+                fontWeight: "600",
+              }}
+            >
+              {banner?.eyebrow || "THE TASTHA EDIT"}
+            </Text>
+            <Text style={[s.title, { fontSize: 22, maxWidth: 600 }]}>
+              {banner?.title ||
+                home.config?.headline ||
+                "Discover your next favourite"}
+            </Text>
+            {banner?.subtitle || home.config?.description ? (
+              <Text style={s.muted}>
+                {banner?.subtitle || home.config?.description}
+              </Text>
+            ) : null}
+            <View style={[s.row, { justifyContent: "space-between", gap: 8 }]}>
               <Button
-                title="Previous campaign"
-                outline
+                title={banner?.ctaText || "Explore styles"}
                 onPress={() =>
-                  setSlide((x) => (x - 1 + banners.length) % banners.length)
+                  navigate(
+                    "StoreLink",
+                    banner?.ctaLink || banner?.link || "/shop",
+                  )
                 }
               />
-              <Text style={s.muted}>
-                {(slide % banners.length) + 1} / {banners.length}
-              </Text>
-              <Button
-                title="Next campaign"
-                outline
-                onPress={() => setSlide((x) => (x + 1) % banners.length)}
-              />
+              {banners.length > 1 ? (
+                <View style={[s.row, { gap: 2 }]}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Previous campaign"
+                    onPress={() =>
+                      setSlide((x) => (x - 1 + banners.length) % banners.length)
+                    }
+                    style={{
+                      minWidth: 44,
+                      minHeight: 44,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      transform: [{ rotate: "180deg" }],
+                    }}
+                  >
+                    <Icon name="chevron" size={18} />
+                  </Pressable>
+                  <Text style={s.small}>
+                    {(slide % banners.length) + 1}/{banners.length}
+                  </Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Next campaign"
+                    onPress={() => setSlide((x) => x + 1)}
+                    style={{
+                      minWidth: 44,
+                      minHeight: 44,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Icon name="chevron" size={18} />
+                  </Pressable>
+                </View>
+              ) : null}
             </View>
-          ) : null}
+          </View>
         </View>
       ) : null}
+      <View style={{ gap: 12 }}>
+        <Text style={s.heading}>Shop by category</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 14 }}
+        >
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => navigate("Shop")}
+            style={{ width: 76, alignItems: "center", gap: 7 }}
+          >
+            <View
+              style={{
+                width: 68,
+                height: 68,
+                backgroundColor: "#292519",
+                borderRadius: 18,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Icon name="shop" size={28} />
+            </View>
+            <Text style={[s.small, { textAlign: "center", color: "#f5f3ed" }]}>
+              All styles
+            </Text>
+          </Pressable>
+          {home?.categories?.map((category) => {
+            const image = imageUrl(category.image, API_ORIGIN);
+            return (
+              <Pressable
+                key={category.slug || category.name}
+                accessibilityRole="button"
+                onPress={() => navigate("Shop", category.name)}
+                style={{ width: 76, alignItems: "center", gap: 7 }}
+              >
+                <View
+                  style={{
+                    width: 68,
+                    height: 68,
+                    borderRadius: 18,
+                    overflow: "hidden",
+                    backgroundColor: "#1c1e23",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {image ? (
+                    <Image
+                      source={{ uri: image }}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        resizeMode: "cover",
+                      }}
+                    />
+                  ) : (
+                    <Icon name="shirt" size={28} />
+                  )}
+                </View>
+                <Text
+                  style={[s.small, { textAlign: "center", color: "#f5f3ed" }]}
+                >
+                  {category.name}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
+      {home?.delivery?.message ? (
+        <Text style={s.small}>{home.delivery.message}</Text>
+      ) : null}
+      {home?.sections
+        ?.filter((section) => section.products?.length)
+        .map((section, i) => (
+          <View key={section.id || i} style={{ gap: 8 }}>
+            <View style={[s.row, { justifyContent: "space-between", gap: 4 }]}>
+              <Text style={[s.heading, { flex: 1 }]}>{section.title}</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={"View all " + section.title}
+                onPress={() =>
+                  navigate(
+                    "StoreLink",
+                    section.id === "newest" ? "/shop?sort=newest" : "/shop",
+                  )
+                }
+                style={{
+                  minHeight: 44,
+                  paddingHorizontal: 8,
+                  flexDirection: "row",
+                  gap: 4,
+                  alignItems: "center",
+                }}
+              >
+                <Text style={[s.small, { color: "#D4AF37" }]}>View all</Text>
+                <Icon name="chevron" size={14} />
+              </Pressable>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View
+                style={{ flexDirection: "row", alignItems: "stretch", gap: 4 }}
+              >
+                {section.products.map((product) => (
+                  <View
+                    key={product._id}
+                    style={{ width: layout.carouselWidth }}
+                  >
+                    <ProductCard product={product} navigate={navigate} />
+                  </View>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        ))}
+      {home && !home.sections?.some((section) => section.products?.length) ? (
+        <Empty
+          title="Explore your next favourite"
+          detail={
+            home.delivery?.message ||
+            "Browse the catalog or choose another category."
+          }
+        />
+      ) : null}
       {home?.config?.budgets?.length ? (
-        <View style={s.panel}>
-          <Text style={s.heading}>Great style has a range.</Text>
-          <View style={s.row}>
+        <View style={{ gap: 12 }}>
+          <Text style={s.heading}>Style within your budget</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 8 }}
+          >
             {home.config.budgets
               .filter((x) => Number.isFinite(x) && x > 0)
               .map((budget) => (
-                <Button
+                <DiscoveryChip
                   key={budget}
                   title={"Under " + money(budget)}
-                  outline
+                  icon="tag"
                   onPress={() =>
                     navigate(
                       "StoreLink",
@@ -329,97 +517,63 @@ export function Home({ navigate }: { navigate: Navigate }) {
                   }
                 />
               ))}
-          </View>
+          </ScrollView>
         </View>
-      ) : null}
-      {home?.delivery?.message ? (
-        <Text style={s.muted}>{home.delivery.message}</Text>
-      ) : null}
-      {home?.sections
-        ?.filter((section) => section.products?.length)
-        .map((section, i) => (
-          <View key={section.id || i} style={{ gap: 12 }}>
-            <Text style={s.heading}>{section.title}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={[s.row, { alignItems: "stretch" }]}>
-                {section.products.map((product) => (
-                  <View key={product._id} style={{ width: 190 }}>
-                    <ProductCard product={product} navigate={navigate} />
-                  </View>
-                ))}
-              </View>
-            </ScrollView>
-            <Button
-              title={"Explore " + section.title}
-              outline
-              onPress={() =>
-                navigate(
-                  "StoreLink",
-                  section.id === "newest" ? "/shop?sort=newest" : "/shop",
-                )
-              }
-            />
-          </View>
-        ))}
-      {home && !home.sections?.some((section) => section.products?.length) ? (
-        <Empty
-          title="Your next favourite is on its way"
-          detail={
-            home.delivery?.message ||
-            "Explore the catalog or choose another category."
-          }
-        />
       ) : null}
       {home?.occasions?.length ? (
-        <View style={s.panel}>
-          <Text style={s.heading}>Where are you heading?</Text>
-          <Text style={s.muted}>
-            Start with the moment. Discover your outfit.
-          </Text>
-          {home.occasions.map((occasion, i) => (
-            <Button
-              key={occasion._id || i}
-              title={occasion.title || occasion.name || "Explore occasion"}
-              outline
-              onPress={() =>
-                navigate(
-                  "StoreLink",
-                  "/choose-occasion?occasion=" +
-                    encodeURIComponent(occasion.slug || occasion.title || ""),
-                )
-              }
-            />
-          ))}
+        <View style={{ gap: 12 }}>
+          <Text style={s.heading}>Dress for the moment</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 8 }}
+          >
+            {home.occasions.map((occasion, i) => (
+              <DiscoveryChip
+                key={occasion._id || i}
+                title={occasion.title || occasion.name || "Explore occasion"}
+                icon="sparkle"
+                onPress={() =>
+                  navigate(
+                    "StoreLink",
+                    "/choose-occasion?occasion=" +
+                      encodeURIComponent(occasion.slug || occasion.title || ""),
+                  )
+                }
+              />
+            ))}
+          </ScrollView>
         </View>
       ) : null}
-      <View style={{ gap: 12, paddingVertical: 12 }}>
-        <Text style={[s.small, { color: "#D4AF37", letterSpacing: 2 }]}>
-          MAKE IT YOURS
+      <View style={{ gap: 8, paddingVertical: 12 }}>
+        <Text
+          style={{
+            color: "#D4AF37",
+            fontSize: 18,
+            letterSpacing: 4,
+            fontWeight: "700",
+          }}
+        >
+          TASTHA
         </Text>
-        <Text style={[s.title, { fontSize: 26 }]}>
-          One good piece.{" "}
-          <Text style={{ color: "#D4AF37", fontStyle: "italic" }}>
-            Endless possibilities.
-          </Text>
-        </Text>
-        <Button title="See every style" onPress={() => navigate("Shop")} />
-      </View>
-      <StoreContact compact />
-      <View style={s.row}>
-        <Button
-          title="Contact Us"
-          outline
-          onPress={() => navigate("Contact")}
-        />
-        <Button
-          title="Help & FAQs"
-          outline
-          onPress={() => navigate("Help", "faq")}
-        />
+        <Text style={s.muted}>Considered pieces. Everyday style.</Text>
+        <View style={s.row}>
+          <DiscoveryChip
+            title="Collections"
+            icon="shirt"
+            onPress={() => navigate("Collections")}
+          />
+          <DiscoveryChip
+            title="Need help?"
+            icon="contact"
+            onPress={() => navigate("Contact")}
+          />
+        </View>
       </View>
     </ScrollView>
   );
 }
+
 export function Catalog({
   navigate,
   category,
@@ -441,6 +595,9 @@ export function Catalog({
   offersOnly?: boolean;
   onFiltersChange?: (filter: CatalogFilter) => void;
 }) {
+  const { width: catalogWidth, fontScale: catalogFontScale } =
+    useWindowDimensions();
+  const catalogLayout = shoppingLayout(catalogWidth, catalogFontScale);
   const dispatch = useAppDispatch();
   const c = useAppSelector((x) => x.catalog);
   const pin = useAppSelector((x) => x.location?.pinCode);
@@ -448,6 +605,7 @@ export function Catalog({
     c.home?.categories || [],
   );
   const [categoryError, setCategoryError] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [filter, setFilterState] = useState<CatalogFilter>({
     search: search || "",
     category: resolveCatalogCategory(category, c.home?.categories || []),
@@ -544,14 +702,23 @@ export function Catalog({
     <FlatList
       data={currentResults ? c.items : []}
       keyExtractor={(p) => p._id}
-      numColumns={2}
-      contentContainerStyle={{ padding: 10, paddingBottom: 30 }}
+      key={"catalog-" + catalogLayout.columns}
+      numColumns={catalogLayout.columns}
+      contentContainerStyle={{
+        padding: catalogLayout.padding - 4,
+        paddingBottom: 30,
+        maxWidth: 1040,
+        width: "100%",
+        alignSelf: "center",
+      }}
       renderItem={({ item }) => (
-        <ProductCard product={item} navigate={navigate} />
+        <View style={{ width: `${100 / catalogLayout.columns}%` }}>
+          <ProductCard product={item} navigate={navigate} />
+        </View>
       )}
       ListHeaderComponent={
         <View style={s.content}>
-          <Text style={s.title}>The collection</Text>
+          <Text style={s.title}>Shop styles</Text>
           <Field
             label="Search products"
             value={filter.search}
@@ -589,88 +756,117 @@ export function Catalog({
             ))}
           </View>
           <ErrorBox message={categoryError} />
-          <Field
-            label="Brand"
-            value={filter.brand || ""}
-            maxLength={200}
-            onChangeText={(brand) =>
-              setFilter((current) => ({ ...current, brand }))
-            }
-          />
-          <Field
-            label="Minimum price (₹)"
-            value={filter.minPrice || ""}
-            keyboardType="number-pad"
-            onChangeText={(minPrice) =>
-              setFilter((current) => ({
-                ...current,
-                minPrice: minPrice.replace(/[^0-9]/g, ""),
-              }))
-            }
-          />
-          <Field
-            label="Maximum price (₹)"
-            value={filter.maxPrice}
-            keyboardType="number-pad"
-            onChangeText={(maxPrice) =>
-              setFilter((current) => ({
-                ...current,
-                maxPrice: maxPrice.replace(/[^0-9]/g, ""),
-              }))
-            }
-          />
-          <ErrorBox message={filterError} />
           <Pressable
-            accessibilityRole="checkbox"
-            accessibilityState={{ checked: Boolean(filter.offersOnly) }}
-            style={[s.pill, filter.offersOnly && s.active]}
-            onPress={() =>
-              setFilter((current) => ({
-                ...current,
-                offersOnly: !current.offersOnly,
-              }))
-            }
+            accessibilityRole="button"
+            accessibilityState={{ expanded: filtersOpen }}
+            onPress={() => setFiltersOpen((value) => !value)}
+            style={[s.pill, s.row, { justifyContent: "space-between" }]}
           >
             <Text style={s.text}>
-              {filter.offersOnly ? "✓ " : ""}Offers only
+              Filters & sort
+              {filter.brand ||
+              filter.minPrice ||
+              filter.maxPrice ||
+              filter.offersOnly ||
+              filter.sort !== "newest"
+                ? " · Active"
+                : ""}
             </Text>
+            <Icon name={filtersOpen ? "minus" : "plus"} size={18} />
           </Pressable>
-          <Button
-            title="Clear all filters"
-            outline
-            onPress={() =>
-              setFilter({
-                search: "",
-                category: "",
-                sort: "newest",
-                maxPrice: "",
-              })
-            }
-          />
-          {currentResults ? (
-            <Text accessibilityLiveRegion="polite" style={s.muted}>
-              {c.total} matching products
+          {filtersOpen ? (
+            <View style={{ gap: 12 }}>
+              <Field
+                label="Brand"
+                value={filter.brand || ""}
+                maxLength={200}
+                onChangeText={(brand) =>
+                  setFilter((current) => ({ ...current, brand }))
+                }
+              />
+              <Field
+                label="Minimum price (₹)"
+                value={filter.minPrice || ""}
+                keyboardType="number-pad"
+                onChangeText={(minPrice) =>
+                  setFilter((current) => ({
+                    ...current,
+                    minPrice: minPrice.replace(/[^0-9]/g, ""),
+                  }))
+                }
+              />
+              <Field
+                label="Maximum price (₹)"
+                value={filter.maxPrice}
+                keyboardType="number-pad"
+                onChangeText={(maxPrice) =>
+                  setFilter((current) => ({
+                    ...current,
+                    maxPrice: maxPrice.replace(/[^0-9]/g, ""),
+                  }))
+                }
+              />
+              <ErrorBox message={filterError} />
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: Boolean(filter.offersOnly) }}
+                style={[s.pill, filter.offersOnly && s.active]}
+                onPress={() =>
+                  setFilter((current) => ({
+                    ...current,
+                    offersOnly: !current.offersOnly,
+                  }))
+                }
+              >
+                <Text style={s.text}>
+                  {filter.offersOnly ? "✓ " : ""}Offers only
+                </Text>
+              </Pressable>
+              <Button
+                title="Clear all filters"
+                outline
+                onPress={() =>
+                  setFilter({
+                    search: "",
+                    category: "",
+                    sort: "newest",
+                    maxPrice: "",
+                  })
+                }
+              />
+              {currentResults ? (
+                <Text accessibilityLiveRegion="polite" style={s.muted}>
+                  {c.total} matching products
+                </Text>
+              ) : null}
+              <Text style={s.heading}>Sort products</Text>
+              <View style={s.row}>
+                {[
+                  ["newest", "Newest"],
+                  ["price_low", "Price ↑"],
+                  ["price_high", "Price ↓"],
+                  ["popular", "Popular"],
+                ].map(([value, label]) => (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: filter.sort === value }}
+                    key={value}
+                    style={[s.pill, filter.sort === value && s.active]}
+                    onPress={() => setFilter({ ...filter, sort: value })}
+                  >
+                    <Text style={s.text}>{label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          ) : null}
+          {!filtersOpen && currentResults ? (
+            <Text style={s.small}>
+              {c.total} styles ·{" "}
+              {filter.sort === "newest" ? "Newest first" : "Filtered results"}
             </Text>
           ) : null}
-          <Text style={s.heading}>Sort products</Text>
-          <View style={s.row}>
-            {[
-              ["newest", "Newest"],
-              ["price_low", "Price ↑"],
-              ["price_high", "Price ↓"],
-              ["popular", "Popular"],
-            ].map(([value, label]) => (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ selected: filter.sort === value }}
-                key={value}
-                style={[s.pill, filter.sort === value && s.active]}
-                onPress={() => setFilter({ ...filter, sort: value })}
-              >
-                <Text style={s.text}>{label}</Text>
-              </Pressable>
-            ))}
-          </View>
+          {!filtersOpen ? <ErrorBox message={filterError} /> : null}
         </View>
       }
       onEndReachedThreshold={0.5}
@@ -714,7 +910,8 @@ export function ProductDetail({
   initialSize?: string;
   initialColor?: string;
 }) {
-  const { width } = useWindowDimensions();
+  const { width, fontScale } = useWindowDimensions();
+  const detailLayout = shoppingLayout(width, fontScale);
   const dispatch = useAppDispatch();
   const user = useAppSelector((x) => x.auth.user);
   const busy = useAppSelector((x) => x.commerce.busy);
@@ -961,7 +1158,10 @@ export function ProductDetail({
           <Text style={s.muted}>Related products from the Tastha catalog</Text>
           <View style={[s.row, { alignItems: "stretch" }]}>
             {related.map((item) => (
-              <View key={item._id} style={{ width: "46%" }}>
+              <View
+                key={item._id}
+                style={{ width: `${100 / detailLayout.columns}%` }}
+              >
                 <ProductCard product={item} navigate={navigate} />
               </View>
             ))}
