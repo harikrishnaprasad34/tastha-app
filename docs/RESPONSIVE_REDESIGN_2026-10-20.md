@@ -11,11 +11,12 @@ The supplied Home, Account and Bag screenshots showed large serif titles, a tall
 - Bag uses selected-variant thumbnails, accessible quantity/remove controls, a compact coupon row, bill summary and a checkout footer in normal layout flow. Existing server amounts, stock restrictions and checkout APIs are retained. Checkout is disabled while the bag refreshes or has an error.
 - Catalog filters can collapse so products appear sooner. Catalog, wishlist and collection grids adapt between one and four columns; large system text reduces the column count. Content width is capped at 1040 logical pixels. Rotation is enabled.
 - Product card image height derives from card width; missing photos show a neutral icon. Wishlist keeps the same heart and variant chooser rather than duplicate stacked buttons.
+- Location prompting is tracked in the shared app-session store, so activity recreation for density/font/rotation changes does not prompt again. Fresh app processes still ask when no delivery area is saved.
 - Location introductory text is shorter; actual detection, confirmation, PIN and coverage logic are retained.
 
 ## Verification boundaries
 
-Local checks: 210 tests, lint and TypeScript. New tests cover narrow/tablet grid calculations, large-font layouts and selected-variant thumbnail identity.
+Local checks: 212 tests, lint and TypeScript. New tests cover narrow/tablet grid calculations, large-font layouts and selected-variant thumbnail identity.
 
 The installed-APK CI check now captures guest Home, Account, Catalog, Bag, Wishlist, staff/customer login, Location and Search, plus 320dp, 1.8x text, landscape and tablet states. These checks require the expected route content and a live app process; screenshots still require visual inspection. Consult the actual CI result for the commit rather than treating this description as evidence of a pass.
 

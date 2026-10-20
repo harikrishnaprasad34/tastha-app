@@ -5,12 +5,12 @@ import {
   type BottomTabBarProps,
 } from "expo-router/js-tabs";
 import { money } from "../../shared/catalog";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Link, useRouter, usePathname } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppDispatch, useAppSelector } from "../../state";
-import { fetchBag, fetchWishlist } from "../../state/store";
+import { actions, fetchBag, fetchWishlist } from "../../state/store";
 import { colors } from "../../config";
 import { styles as s } from "../../components/ui";
 function StoreTabBar(props: BottomTabBarProps) {
@@ -79,13 +79,15 @@ export default function TabLayout() {
   const router = useRouter();
   const pathname = usePathname();
   const compact = /\/(?:account|bag)$/.test(pathname);
-  const prompted = useRef(false);
+  const prompted = useAppSelector((state) => state.ui.locationPrompted);
   useEffect(() => {
-    if (!prompted.current) {
-      prompted.current = true;
-      if (!location) router.push("/location");
+    // Component refs reset when Android recreates the activity after density or
+    // font changes. Keep this app-session choice in the shared store instead.
+    if (!location && !prompted) {
+      dispatch(actions.acknowledgeLocationPrompt());
+      router.push("/location");
     }
-  }, [location, router]);
+  }, [location, prompted, dispatch, router]);
   return (
     <View style={s.screen}>
       <SafeAreaView

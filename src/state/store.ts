@@ -56,6 +56,7 @@ interface Commerce {
   errors: Record<string, string | null>;
 }
 export interface AppState {
+  ui: { locationPrompted: boolean };
   collections: CollectionState;
   publicSettings: {
     data: PublicStoreSettings | null;
@@ -337,6 +338,15 @@ export const saveAddress = thunk(
   { condition: (_, { getState }) => !getState().commerce.busy },
 );
 
+const ui = createSlice({
+  name: "ui",
+  initialState: { locationPrompted: false },
+  reducers: {
+    acknowledgeLocationPrompt: (state) => {
+      state.locationPrompted = true;
+    },
+  },
+});
 const auth = createSlice({
   name: "auth",
   initialState: { user: null, ready: false, error: null } as AppState["auth"],
@@ -582,6 +592,7 @@ const commerce = createSlice({
   },
 });
 export const actions = {
+  ...ui.actions,
   ...auth.actions,
   ...commerce.actions,
   setLocation: location.actions.setLocation,
@@ -590,6 +601,7 @@ export const actions = {
 export function buildStore(extra: Extra) {
   const store = configureStore({
     reducer: {
+      ui: ui.reducer,
       auth: auth.reducer,
       collections: collectionsSlice.reducer,
       publicSettings: publicSettings.reducer,

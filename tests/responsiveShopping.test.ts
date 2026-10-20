@@ -2,6 +2,44 @@ import { describe, expect, it } from "vitest";
 import { shoppingLayout } from "../src/shared/layout";
 import { cartLineImage } from "../src/shared/catalog";
 import type { CartLine } from "../src/models";
+import { actions, buildStore } from "../src/state/store";
+import { createSessionManager } from "../src/api/session";
+import type { ApiClient } from "../src/api/client";
+describe("location prompt across activity recreation", () => {
+  const create = () => {
+    const session = createSessionManager({
+      get: async () => null,
+      set: async () => {},
+      remove: async () => {},
+    });
+    return { session, store: buildStore({ api: {} as ApiClient, session }) };
+  };
+  it("keeps the prompt acknowledgement outside remounted screen state", () => {
+    const { store } = create();
+    expect(store.getState().ui.locationPrompted).toBe(false);
+    store.dispatch(actions.acknowledgeLocationPrompt());
+    store.dispatch(actions.resetCatalog());
+    expect(store.getState().ui.locationPrompted).toBe(true);
+    expect(store.getState().location).toBeNull();
+    expect(create().store.getState().ui.locationPrompted).toBe(false);
+  });
+  it("does not repeat the prompt when customer identity changes in the same app session", async () => {
+    const { store, session } = create();
+    store.dispatch(actions.acknowledgeLocationPrompt());
+    await session.save(
+      {
+        accessToken: "a",
+        refreshToken: "r",
+        user: { id: "u1", role: "CUSTOMER", fullName: "Customer" },
+      },
+      session.revision(),
+      true,
+    );
+    await session.clear();
+    expect(store.getState().ui.locationPrompted).toBe(true);
+    expect(store.getState().auth.user).toBeNull();
+  });
+});
 describe("adaptive shopping layouts", () => {
   it.each([320, 360, 393, 600, 768, 1024, 1440])(
     "keeps %s logical-pixel layouts within the available space",
