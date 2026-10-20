@@ -42,6 +42,10 @@ export default function Root() {
                 name="product/[id]"
                 options={{ title: "Tastha collection" }}
               />
+              <Stack.Screen
+                name="admin"
+                options={{ title: "Staff workspace" }}
+              />
               <Stack.Screen name="login" options={{ title: "Sign in" }} />
               <Stack.Screen
                 name="signup"

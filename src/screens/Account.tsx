@@ -260,6 +260,11 @@ export function Account({ navigate }: { navigate: Navigate }) {
         outline
         onPress={() => navigate("Collections")}
       />
+      <Button
+        title="Staff workspace"
+        outline
+        onPress={() => navigate("Admin")}
+      />
       <Text style={s.heading}>Preferences & support</Text>
       <View style={[s.panel, { padding: 0, gap: 0 }]}>
         {[

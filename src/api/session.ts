@@ -4,7 +4,10 @@ export interface SecureStorage {
   set(value: string): Promise<void>;
   remove(): Promise<void>;
 }
-export function createSessionManager(storage: SecureStorage) {
+export function createSessionManager(
+  storage: SecureStorage,
+  acceptsRole: (role: string) => boolean = (role) => role === "CUSTOMER",
+) {
   let current: Session | null = null,
     revision = 0,
     writes: Promise<void> = Promise.resolve();
@@ -24,7 +27,8 @@ export function createSessionManager(storage: SecureStorage) {
       typeof s.refreshToken === "string" &&
       s.refreshToken.length > 0 &&
       typeof s.user?.id === "string" &&
-      s.user.role === "CUSTOMER"
+      typeof s.user.role === "string" &&
+      acceptsRole(s.user.role)
     );
   };
   return {
@@ -58,7 +62,7 @@ export function createSessionManager(storage: SecureStorage) {
       }
     },
     async save(next: Session, expected = revision, newLogin = false) {
-      if (!valid(next)) throw Error("A valid customer session is required.");
+      if (!valid(next)) throw Error("A valid account session is required.");
       if (expected !== revision) throw Error("Sign-in session changed.");
       if (newLogin) {
         revision++;

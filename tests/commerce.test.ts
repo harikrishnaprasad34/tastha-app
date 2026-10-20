@@ -202,7 +202,7 @@ describe("secure sessions and requests", () => {
     const manager = createSessionManager(storage());
     await expect(
       manager.save({ ...customer, user: { ...customer.user, role: "ADMIN" } }),
-    ).rejects.toThrow("customer session");
+    ).rejects.toThrow("A valid account session");
     expect(manager.get()).toBeNull();
   });
   it("cannot restore a session after logout during storage read", async () => {
