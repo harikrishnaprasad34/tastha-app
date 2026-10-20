@@ -54,6 +54,7 @@ export const styles = StyleSheet.create({
     backgroundColor: c.panel,
   },
   button: {
+    maxWidth: "100%",
     backgroundColor: c.gold,
     paddingHorizontal: 16,
     paddingVertical: 12,

@@ -1164,7 +1164,13 @@ export function ProductDetail({
             {related.map((item) => (
               <View
                 key={item._id}
-                style={{ width: `${100 / detailLayout.columns}%` }}
+                style={{
+                  width:
+                    (detailLayout.contentWidth -
+                      32 -
+                      12 * (detailLayout.columns - 1)) /
+                    detailLayout.columns,
+                }}
               >
                 <ProductCard product={item} navigate={navigate} />
               </View>
