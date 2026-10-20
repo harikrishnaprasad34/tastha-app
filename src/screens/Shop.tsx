@@ -725,7 +725,11 @@ export function Catalog({
             onChangeText={(search) => setFilter({ ...filter, search })}
           />
           <Text style={s.heading}>Browse by category</Text>
-          <View style={s.row}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 8 }}
+          >
             <Pressable
               accessibilityRole="button"
               accessibilityState={{ selected: !filter.category }}
@@ -754,7 +758,7 @@ export function Catalog({
                 <Text style={s.text}>{option.name}</Text>
               </Pressable>
             ))}
-          </View>
+          </ScrollView>
           <ErrorBox message={categoryError} />
           <Pressable
             accessibilityRole="button"

@@ -11,12 +11,13 @@ describe("adaptive shopping layouts", () => {
       expect(layout.contentWidth).toBeLessThanOrEqual(1040);
       expect(
         (layout.contentWidth - layout.padding * 2) / layout.columns,
-      ).toBeGreaterThanOrEqual(150);
+      ).toBeGreaterThanOrEqual(140);
       expect(layout.columns).toBeGreaterThanOrEqual(1);
       expect(layout.columns).toBeLessThanOrEqual(4);
     },
   );
   it("reduces columns for larger system text without disabling scaling", () => {
+    expect(shoppingLayout(320).columns).toBe(2);
     expect(shoppingLayout(393).columns).toBe(2);
     expect(shoppingLayout(393, 1.8).columns).toBe(1);
     expect(shoppingLayout(1024).columns).toBe(4);

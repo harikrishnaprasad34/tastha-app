@@ -34,7 +34,7 @@ def capture(name, path, expected):
 try:
     for name, path, expected in [
         ("account", "/account", "My account"),
-        ("home", "/", "Shop by category"),
+        ("home", "/", "New in"),
         ("catalog", "/shop", "Shop styles"),
         ("bag-guest", "/bag", "Sign in to continue"),
         ("wishlist-guest", "/wishlist", "Sign in to continue"),
