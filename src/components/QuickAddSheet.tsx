@@ -134,6 +134,9 @@ export function QuickAddSheet({
           accessibilityViewIsModal
           style={{
             maxHeight: "85%",
+            width: "100%",
+            maxWidth: 680,
+            alignSelf: "center",
             backgroundColor: colors.background,
             borderTopLeftRadius: 24,
             borderTopRightRadius: 24,

@@ -41,6 +41,18 @@ describe("location prompt across activity recreation", () => {
   });
 });
 describe("adaptive shopping layouts", () => {
+  it.each([180, 200, 240, 280])(
+    "does not overflow narrow %s pixel viewports",
+    (width) => {
+      const layout = shoppingLayout(width, 1.8);
+      expect(layout.contentWidth).toBeLessThanOrEqual(width);
+      expect(layout.carouselWidth).toBeLessThanOrEqual(
+        width - layout.padding * 2,
+      );
+      expect(layout.carouselWidth).toBeGreaterThan(0);
+      expect(layout.columns).toBe(1);
+    },
+  );
   it.each([320, 360, 393, 600, 768, 1024, 1440])(
     "keeps %s logical-pixel layouts within the available space",
     (width) => {

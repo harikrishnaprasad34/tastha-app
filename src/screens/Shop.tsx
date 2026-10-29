@@ -170,7 +170,9 @@ export function ProductCard({
         ) : null}
       </Pressable>
       <Button
-        title="+ Add"
+        title="Add"
+        icon="plus"
+        accessibilityLabel={"Add " + product.name + " to bag"}
         outline
         onPress={() => {
           setNotice("");
@@ -300,7 +302,7 @@ export function Home({ navigate }: { navigate: Navigate }) {
           <View style={{ padding: 16, gap: 8 }}>
             <Text
               style={{
-                fontSize: 10,
+                fontSize: 12,
                 letterSpacing: 1.5,
                 color: "#D4AF37",
                 fontWeight: "600",
@@ -308,7 +310,7 @@ export function Home({ navigate }: { navigate: Navigate }) {
             >
               {banner?.eyebrow || "THE TASTHA EDIT"}
             </Text>
-            <Text style={[s.title, { fontSize: 22, maxWidth: 600 }]}>
+            <Text style={[s.title, { maxWidth: 600 }]}>
               {banner?.title ||
                 home.config?.headline ||
                 "Discover your next favourite"}
@@ -1017,8 +1019,11 @@ export function ProductDetail({
                 style={[
                   s.image,
                   {
-                    width: Math.max(220, Math.min(width - 40, 520)),
-                    height: 300,
+                    width: Math.max(0, detailLayout.contentWidth - 32),
+                    height: Math.min(
+                      420,
+                      Math.max(220, detailLayout.contentWidth * 0.85),
+                    ),
                     borderRadius: 12,
                   },
                 ]}

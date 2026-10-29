@@ -1,4 +1,6 @@
 import React from "react";
+import { Icon, type IconName } from "./Icon";
+import { typography, iconSizes } from "../shared/typography";
 import {
   ActivityIndicator,
   Pressable,
@@ -20,14 +22,14 @@ export const styles = StyleSheet.create({
     alignSelf: "center",
   },
   title: {
-    fontSize: 22,
+    ...typography.title,
     fontWeight: "700",
     letterSpacing: -0.4,
     color: c.text,
   },
-  heading: { fontSize: 17, color: c.text, fontWeight: "600" },
-  text: { color: c.text, fontSize: 14, lineHeight: 20 },
-  muted: { color: c.muted, fontSize: 13, lineHeight: 19 },
+  heading: { ...typography.heading, color: c.text, fontWeight: "600" },
+  text: { color: c.text, ...typography.body },
+  muted: { color: c.muted, ...typography.helper },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -50,7 +52,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 11,
     minHeight: 46,
-    fontSize: 14,
+    ...typography.body,
     backgroundColor: c.panel,
   },
   button: {
@@ -66,13 +68,13 @@ export const styles = StyleSheet.create({
   buttonText: {
     color: c.background,
     fontWeight: "700",
-    fontSize: 14,
+    ...typography.body,
     textAlign: "center",
     flexShrink: 1,
   },
   outline: { backgroundColor: c.panel, borderWidth: 1, borderColor: c.border },
   outlineText: { color: c.gold },
-  error: { color: c.error, lineHeight: 22 },
+  error: { color: c.error, ...typography.body },
   pill: {
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -89,12 +91,12 @@ export const styles = StyleSheet.create({
     resizeMode: "contain",
     backgroundColor: c.panel,
   },
-  price: { fontSize: 17, color: c.gold, fontWeight: "600" },
-  grow: { flex: 1 },
+  price: { ...typography.price, color: c.gold, fontWeight: "600" },
+  grow: { flex: 1, minWidth: 0 },
   header: { padding: 14, borderBottomWidth: 1, borderColor: c.border, gap: 8 },
   tabs: { flexDirection: "row", borderTopWidth: 1, borderColor: c.border },
   tab: { flex: 1, paddingVertical: 18, alignItems: "center" },
-  small: { color: c.muted, fontSize: 12, lineHeight: 17 },
+  small: { color: c.muted, ...typography.caption },
   divider: { height: 1, backgroundColor: c.border },
   disabled: { opacity: 0.45 },
 });
@@ -104,17 +106,24 @@ export function Button({
   busy = false,
   disabled = false,
   outline = false,
+  icon,
+  accessibilityLabel,
+  selected,
 }: {
   title: string;
   onPress: () => void;
   busy?: boolean;
   disabled?: boolean;
   outline?: boolean;
+  icon?: IconName;
+  accessibilityLabel?: string;
+  selected?: boolean;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ disabled: disabled || busy, busy }}
+      accessibilityLabel={accessibilityLabel || title}
+      accessibilityState={{ disabled: disabled || busy, busy, selected }}
       disabled={disabled || busy}
       onPress={onPress}
       style={[
@@ -126,9 +135,26 @@ export function Button({
       {busy ? (
         <ActivityIndicator color={outline ? c.gold : c.background} />
       ) : (
-        <Text style={[styles.buttonText, outline && styles.outlineText]}>
-          {title}
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            maxWidth: "100%",
+          }}
+        >
+          {icon ? (
+            <Icon
+              name={icon}
+              size={iconSizes.small}
+              color={outline ? c.gold : c.background}
+            />
+          ) : null}
+          <Text style={[styles.buttonText, outline && styles.outlineText]}>
+            {title}
+          </Text>
+        </View>
       )}
     </Pressable>
   );
@@ -140,7 +166,9 @@ export function Field({
 }: TextInputProps & { label: string; error?: string }) {
   return (
     <View style={{ gap: 7 }}>
-      <Text style={styles.text}>{label}</Text>
+      <Text style={[styles.text, typography.label, { fontWeight: "600" }]}>
+        {label}
+      </Text>
       <TextInput
         accessibilityLabel={label}
         placeholderTextColor={c.muted}

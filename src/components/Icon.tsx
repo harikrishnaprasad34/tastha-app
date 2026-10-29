@@ -1,6 +1,7 @@
 import React from "react";
 import type { ColorValue } from "react-native";
 import Svg, { Path } from "react-native-svg";
+import { iconSizes } from "../shared/typography";
 import { colors } from "../config";
 const paths = {
   plus: "M12 5v14M5 12h14",
@@ -25,6 +26,7 @@ const paths = {
   sparkle: "m12 2 3 7 7 3-7 3-3 7-3-7-7-3 7-3Z",
   contact:
     "M3 13v-1a9 9 0 0 1 18 0v1M3 12h4v8H3v-8ZM17 12h4v8h-4v-8ZM21 19v1a3 3 0 0 1-3 3h-4",
+  chevronDown: "m6 9 6 6 6-6",
   chevron: "m9 5 7 7-7 7",
   card: "M3 4h18v16H3V4ZM3 9h18M7 15h4",
   bank: "m2 8 10-6 10 6H2ZM5 11v8M12 11v8M19 11v8M2 22h20",
@@ -35,7 +37,7 @@ const paths = {
 export type IconName = keyof typeof paths;
 export function Icon({
   name,
-  size = 24,
+  size = iconSizes.control,
   color = colors.gold,
   filled = false,
 }: {
