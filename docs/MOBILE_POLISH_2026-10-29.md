@@ -14,3 +14,7 @@ Built-in image editing produced a square gold lion-and-sword icon based on asset
 ## Validation and limits
 
 TypeScript, lint, test suite, Android/iOS bundle exports, and native-project generation were checked. No emulator/device was available for installed-app visual testing. Bundle export and native-project generation are not signed APK/IPA builds. Launcher icon changes require a new native build and installation; they do not update an already installed app through JavaScript changes alone.
+
+## Profile follow-up
+
+The account hub now separates personal details, shopping, support and legal options. Profile card opens the edit screen; returns and terms have dedicated existing routes. Guest-only and signed-in menu routes are tested. Edit Profile groups personal details and shopping preferences, validates supported styles/sizes and Indian mobile numbers, disables controls during saving, and resets to confirmed saved values. The account profile fetch offers Retry and clears errors when identity changes. Local profile/menu regression suite brings the total to 232 tests. Device visual testing remains pending.
