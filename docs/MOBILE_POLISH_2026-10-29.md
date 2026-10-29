@@ -18,3 +18,7 @@ TypeScript, lint, test suite, Android/iOS bundle exports, and native-project gen
 ## Profile follow-up
 
 The account hub now separates personal details, shopping, support and legal options. Profile card opens the edit screen; returns and terms have dedicated existing routes. Guest-only and signed-in menu routes are tested. Edit Profile groups personal details and shopping preferences, validates supported styles/sizes and Indian mobile numbers, disables controls during saving, and resets to confirmed saved values. The account profile fetch offers Retry and clears errors when identity changes. Local profile/menu regression suite brings the total to 232 tests. Device visual testing remains pending.
+
+## Profile-icon interaction checks
+
+Component interaction tests render the storefront header and account screen with native primitives and device APIs mocked. They invoke the actual profile-icon, identity-card, quick-action and menu-row callbacks, check guest sign-in return destinations, and verify the sign-out confirmation. The menu also renders completely for 320px, 1.8x text and tablet inputs; these assertions do not prove native visual layout. Nine added tests bring the suite to 241 tests. No additional broken account-menu destinations were found.
