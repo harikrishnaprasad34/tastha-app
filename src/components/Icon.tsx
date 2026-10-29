@@ -4,6 +4,8 @@ import Svg, { Path } from "react-native-svg";
 import { iconSizes } from "../shared/typography";
 import { colors } from "../config";
 const paths = {
+  bookmark: "M6 3h12v19l-6-4-6 4V3Z",
+  collection: "M3 3h7v7H3ZM14 3h7v7h-7ZM3 14h7v7H3ZM14 14h7v7h-7Z",
   plus: "M12 5v14M5 12h14",
   minus: "M5 12h14",
   close: "m6 6 12 12M6 18 18 6",

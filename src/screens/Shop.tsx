@@ -4,6 +4,7 @@ import { QuickAddSheet } from "../components/QuickAddSheet";
 import React, { useEffect, useState, useRef } from "react";
 import {
   FlatList,
+  RefreshControl,
   Image,
   useWindowDimensions,
   Pressable,
@@ -16,7 +17,7 @@ import { SizeGuide } from "../components/SizeGuide";
 import { catalogFilterError } from "../shared/catalogFilters";
 import { ProductReviews } from "../components/ProductReviews";
 import { api } from "../api/runtime";
-import { API_ORIGIN } from "../config";
+import { API_ORIGIN, colors } from "../config";
 import type { Product, CatalogFilter } from "../models";
 import { useAppDispatch, useAppSelector } from "../state";
 import {
@@ -251,13 +252,17 @@ export function Home({ navigate }: { navigate: Navigate }) {
   );
   return (
     <ScrollView
+      refreshControl={
+        <RefreshControl
+          refreshing={homeLoading}
+          onRefresh={() => void dispatch(fetchHome(pin))}
+          tintColor={colors.gold}
+          colors={[colors.gold]}
+        />
+      }
       contentContainerStyle={[s.content, { padding: layout.padding, gap: 20 }]}
     >
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ gap: 8 }}
-      >
+      <View style={[s.row, { flexWrap: "wrap", gap: 8 }]}>
         <DiscoveryChip
           title="New in"
           icon="shirt"
@@ -275,12 +280,21 @@ export function Home({ navigate }: { navigate: Navigate }) {
         />
         <DiscoveryChip
           title="Saved looks"
-          icon="heart"
+          icon="bookmark"
           onPress={() => navigate("SavedLooks")}
         />
-      </ScrollView>
+      </View>
       {homeLoading ? <Loading /> : null}
-      <ErrorBox message={homeError} retry={() => dispatch(fetchHome(pin))} />
+      <ErrorBox
+        message={
+          homeError
+            ? home
+              ? "Could not refresh the latest styles. Showing previously loaded content. Pull down or retry."
+              : "Styles are taking longer to load. Check your connection and try again."
+            : null
+        }
+        retry={homeLoading ? undefined : () => void dispatch(fetchHome(pin))}
+      />
       {home ? (
         <View
           style={[
@@ -372,6 +386,13 @@ export function Home({ navigate }: { navigate: Navigate }) {
       ) : null}
       <View style={{ gap: 12 }}>
         <Text style={s.heading}>Shop by category</Text>
+        {!home ? (
+          <Text style={s.muted}>
+            {homeLoading
+              ? "Loading categories and styles…"
+              : "Categories are unavailable. You can still browse all styles."}
+          </Text>
+        ) : null}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -562,7 +583,7 @@ export function Home({ navigate }: { navigate: Navigate }) {
         <View style={s.row}>
           <DiscoveryChip
             title="Collections"
-            icon="shirt"
+            icon="collection"
             onPress={() => navigate("Collections")}
           />
           <DiscoveryChip

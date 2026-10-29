@@ -10,6 +10,15 @@ export function imageUrl(value: unknown, origin: string): string | undefined {
     return imageUrl(v.url || v.secure_url || v.src, origin);
   }
   if (typeof value !== "string") return;
+  // CMS category artwork may be embedded. Only allow bounded raster payloads;
+  // SVG, HTML and arbitrary data URLs must never become image sources.
+  if (value.startsWith("data:"))
+    return value.length <= 4 * 1024 * 1024 &&
+      /^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/.test(
+        value,
+      )
+      ? value
+      : undefined;
   try {
     const url = new URL(value, origin);
     return url.protocol === "https:" && !url.username && !url.password
