@@ -22,12 +22,16 @@ export function SizeGuide({ product }: { product: Product }) {
               {chart.unit ? (
                 <View style={s.row}>
                   <Button
-                    title={unit === "in" ? "✓ Inches" : "Inches"}
+                    title="Inches"
+                    selected={unit === "in"}
+                    icon={unit === "in" ? "check" : undefined}
                     outline
                     onPress={() => setUnit("in")}
                   />
                   <Button
-                    title={unit === "cm" ? "✓ Centimetres" : "Centimetres"}
+                    title="Centimetres"
+                    selected={unit === "cm"}
+                    icon={unit === "cm" ? "check" : undefined}
                     outline
                     onPress={() => setUnit("cm")}
                   />

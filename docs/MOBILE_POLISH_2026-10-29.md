@@ -22,3 +22,7 @@ The account hub now separates personal details, shopping, support and legal opti
 ## Profile-icon interaction checks
 
 Component interaction tests render the storefront header and account screen with native primitives and device APIs mocked. They invoke the actual profile-icon, identity-card, quick-action and menu-row callbacks, check guest sign-in return destinations, and verify the sign-out confirmation. The menu also renders completely for 320px, 1.8x text and tablet inputs; these assertions do not prove native visual layout. Nine added tests bring the suite to 241 tests. No additional broken account-menu destinations were found.
+
+## Typography and icon consistency
+
+Shared typography now uses 20/26 title, 16/22 heading, 14/20 body, 13/18 label, 13/19 helper, 12/17 caption and 16/22 price font-size/line-height pairs. Header and tab captions are at least 12px. Menu icons use 20px; SVG icon defaults use 20px. Menu padding is tighter while retaining its 56px minimum row height. Buttons retain 46px minimum heights. System font scaling remains enabled. Add and size-unit selections use the existing SVG icon family; selected units remain exposed to assistive technology. These are Zepto-inspired density choices, not measured Zepto font specifications.

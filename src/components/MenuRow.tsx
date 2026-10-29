@@ -23,7 +23,7 @@ export function MenuRow({
       onPress={onPress}
       style={({ pressed }) => ({
         paddingHorizontal: 14,
-        paddingVertical: 13,
+        paddingVertical: 11,
         minHeight: 56,
         flexDirection: "row",
         alignItems: "center",
@@ -43,7 +43,7 @@ export function MenuRow({
           justifyContent: "center",
         }}
       >
-        <Icon name={icon} size={19} />
+        <Icon name={icon} size={20} />
       </View>
       <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
         <Text style={[s.text, { fontWeight: "500" }]}>{title}</Text>

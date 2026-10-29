@@ -49,7 +49,7 @@ function StoreTabBar(props: BottomTabBarProps) {
               {count} {count === 1 ? "item" : "items"} ·{" "}
               {money(bag?.totalAmount ?? NaN)}
             </Text>
-            <Text style={{ color: colors.background, fontSize: 11 }}>
+            <Text style={{ color: colors.background, fontSize: 12 }}>
               Bag subtotal · total at checkout
             </Text>
           </View>
@@ -140,7 +140,7 @@ export default function TabLayout() {
                   <Text
                     style={{
                       color: colors.gold,
-                      fontSize: 10,
+                      fontSize: 12,
                       letterSpacing: 1,
                       fontWeight: "700",
                     }}
@@ -208,11 +208,11 @@ export default function TabLayout() {
           headerShown: false,
           tabBarActiveTintColor: colors.gold,
           tabBarInactiveTintColor: colors.muted,
-          tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
+          tabBarLabelStyle: { fontSize: 12, fontWeight: "600" },
           tabBarBadgeStyle: {
             backgroundColor: colors.gold,
             color: colors.background,
-            fontSize: 10,
+            fontSize: 12,
           },
           tabBarStyle: {
             backgroundColor: colors.background,
