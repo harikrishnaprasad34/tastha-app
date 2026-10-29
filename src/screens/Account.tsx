@@ -2,7 +2,14 @@ import { MenuRow } from "../components/MenuRow";
 import { Icon, type IconName } from "../components/Icon";
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useFocusEffect } from "expo-router";
-import { ScrollView, Text, View, Alert, Pressable } from "react-native";
+import {
+  ScrollView,
+  Text,
+  View,
+  Alert,
+  Pressable,
+  useWindowDimensions,
+} from "react-native";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import * as Location from "expo-location";
@@ -20,7 +27,8 @@ import {
 import { api, session } from "../api/runtime";
 import { customerLoginPayload } from "../api/authPayload";
 import { mergeProfileUser } from "../api/profile";
-import { API_URL } from "../config";
+import { API_URL, colors } from "../config";
+import { Brand } from "../components/Brand";
 import type { DeliveryLocation, Session } from "../models";
 import { useAppDispatch, useAppSelector } from "../state";
 import { actions, saveAddress, fetchAddresses } from "../state/store";
@@ -118,6 +126,8 @@ export function Login({ navigate }: { navigate: Navigate }) {
   );
 }
 export function Account({ navigate }: { navigate: Navigate }) {
+  const { width, fontScale } = useWindowDimensions();
+  const stackedActions = width < 360 || fontScale > 1.4;
   const user = useAppSelector((x) => x.auth.user);
   const delivery = useAppSelector((x) => x.location);
   const dispatch = useAppDispatch();
@@ -199,8 +209,19 @@ export function Account({ navigate }: { navigate: Navigate }) {
     }
   }
   return (
-    <ScrollView contentContainerStyle={s.content}>
-      <Text style={s.title}>My account</Text>
+    <ScrollView
+      contentContainerStyle={[
+        s.content,
+        { maxWidth: 680, padding: width < 360 ? 12 : 16 },
+      ]}
+      showsVerticalScrollIndicator={false}
+    >
+      <Text accessibilityRole="header" style={s.title}>
+        My account
+      </Text>
+      <Text style={s.muted}>
+        Your orders, favourites and everyday essentials
+      </Text>
       <ErrorBox message={profileError} />
       <View
         style={[
@@ -213,7 +234,7 @@ export function Account({ navigate }: { navigate: Navigate }) {
             width: 48,
             height: 48,
             borderRadius: 24,
-            backgroundColor: "#292519",
+            backgroundColor: colors.elevated,
             alignItems: "center",
             justifyContent: "center",
           }}
@@ -221,13 +242,72 @@ export function Account({ navigate }: { navigate: Navigate }) {
           <Icon name="person" size={24} />
         </View>
         <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-          <Text style={s.heading}>
-            {user ? user.fullName : "Welcome to Tastha"}
-          </Text>
+          <Text style={s.heading}>{user?.fullName || "Welcome to Tastha"}</Text>
           <Text style={s.muted}>
             {user ? user.email || user.phone : "Your style, saved in one place"}
           </Text>
         </View>
+      </View>
+      <View
+        style={{ flexDirection: stackedActions ? "column" : "row", gap: 10 }}
+      >
+        {[
+          {
+            title: "Orders",
+            detail: "Track & reorder",
+            icon: "bag",
+            route: "Orders",
+            path: "/orders",
+          },
+          {
+            title: "Wishlist",
+            detail: "Your favourites",
+            icon: "heart",
+            route: "Wishlist",
+            path: "/(tabs)/wishlist",
+          },
+          {
+            title: "Support",
+            detail: "We're here to help",
+            icon: "contact",
+            route: "Help",
+            path: "/help/faq",
+          },
+        ].map((item) => (
+          <Pressable
+            key={item.title}
+            accessibilityRole="button"
+            accessibilityLabel={item.title + ". " + item.detail}
+            onPress={() =>
+              !user && item.route !== "Help"
+                ? navigate("Login", item.path)
+                : navigate(
+                    item.route,
+                    item.route === "Help" ? "faq" : undefined,
+                  )
+            }
+            style={({ pressed }) => [
+              s.panel,
+              {
+                flex: stackedActions ? undefined : 1,
+                minWidth: 0,
+                minHeight: 96,
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                opacity: pressed ? 0.65 : 1,
+              },
+            ]}
+          >
+            <Icon name={item.icon as IconName} size={22} />
+            <Text style={[s.text, { fontWeight: "600", textAlign: "center" }]}>
+              {item.title}
+            </Text>
+            <Text style={[s.small, { textAlign: "center" }]}>
+              {item.detail}
+            </Text>
+          </Pressable>
+        ))}
       </View>
       {!user ? (
         <Button
@@ -335,19 +415,10 @@ export function Account({ navigate }: { navigate: Navigate }) {
           />
         ) : null}
       </View>
-      <Text
-        style={[
-          s.small,
-          {
-            textAlign: "center",
-            color: "#D4AF37",
-            letterSpacing: 3,
-            paddingVertical: 8,
-          },
-        ]}
-      >
-        TASTHA
-      </Text>
+      <View style={{ alignItems: "center", paddingVertical: 12, gap: 6 }}>
+        <Brand />
+        <Text style={s.small}>Made for your everyday style</Text>
+      </View>
     </ScrollView>
   );
 }
@@ -359,7 +430,7 @@ export function EditProfile({ navigate }: { navigate: Navigate }) {
     return (
       <View style={s.content}>
         <Text style={s.muted}>Sign in to edit your Tastha profile.</Text>
-        <Button title="Sign in" onPress={() => navigate("Login", "/(tabs)")} />
+        <Button title="Sign in" onPress={() => navigate("Login", "/edit-profile")} />
       </View>
     );
   }
@@ -374,7 +445,6 @@ export function EditProfile({ navigate }: { navigate: Navigate }) {
       </Text>
       <Formik
         key={user.id}
-        enableReinitialize
         initialValues={{
           fullName: user.fullName || "",
           phone: user.phone || "",

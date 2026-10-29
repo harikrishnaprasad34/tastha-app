@@ -1,3 +1,4 @@
+import { Brand } from "../../components/Brand";
 import { Icon } from "../../components/Icon";
 import {
   Tabs,
@@ -102,16 +103,7 @@ export default function TabLayout() {
               justifyContent: "space-between",
             }}
           >
-            <Text
-              style={{
-                color: colors.gold,
-                fontSize: 14,
-                letterSpacing: 3,
-                fontWeight: "700",
-              }}
-            >
-              TASTHA
-            </Text>
+            <Brand />
             <Link href="/search" asChild>
               <Pressable
                 accessibilityRole="button"
@@ -132,7 +124,7 @@ export default function TabLayout() {
             <View
               style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
             >
-              <Icon name="location" size={21} />
+              <Brand compact />
               <Link href="/location" asChild>
                 <Pressable
                   accessibilityRole="button"
@@ -164,10 +156,10 @@ export default function TabLayout() {
                     !location.label.includes(location.pinCode)
                       ? " " + location.pinCode
                       : ""}{" "}
-                    ▾
                   </Text>
                 </Pressable>
               </Link>
+              <Icon name="chevronDown" size={16} color={colors.muted} />
               <Link href="/(tabs)/account" asChild>
                 <Pressable
                   accessibilityRole="button"
@@ -216,7 +208,7 @@ export default function TabLayout() {
           headerShown: false,
           tabBarActiveTintColor: colors.gold,
           tabBarInactiveTintColor: colors.muted,
-          tabBarLabelStyle: { fontSize: 10, fontWeight: "500" },
+          tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
           tabBarBadgeStyle: {
             backgroundColor: colors.gold,
             color: colors.background,

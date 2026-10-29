@@ -19,10 +19,11 @@ export function MenuRow({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={detail ? `${title}. ${detail}` : title}
       onPress={onPress}
       style={({ pressed }) => ({
         paddingHorizontal: 14,
-        paddingVertical: 10,
+        paddingVertical: 13,
         minHeight: 56,
         flexDirection: "row",
         alignItems: "center",

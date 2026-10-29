@@ -1017,8 +1017,11 @@ export function ProductDetail({
                 style={[
                   s.image,
                   {
-                    width: Math.max(220, Math.min(width - 40, 520)),
-                    height: 300,
+                    width: Math.max(0, detailLayout.contentWidth - 32),
+                    height: Math.min(
+                      420,
+                      Math.max(220, detailLayout.contentWidth * 0.85),
+                    ),
                     borderRadius: 12,
                   },
                 ]}

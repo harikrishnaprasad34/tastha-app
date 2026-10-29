@@ -90,7 +90,7 @@ export const styles = StyleSheet.create({
     backgroundColor: c.panel,
   },
   price: { fontSize: 17, color: c.gold, fontWeight: "600" },
-  grow: { flex: 1 },
+  grow: { flex: 1, minWidth: 0 },
   header: { padding: 14, borderBottomWidth: 1, borderColor: c.border, gap: 8 },
   tabs: { flexDirection: "row", borderTopWidth: 1, borderColor: c.border },
   tab: { flex: 1, paddingVertical: 18, alignItems: "center" },
@@ -114,6 +114,7 @@ export function Button({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={title}
       accessibilityState={{ disabled: disabled || busy, busy }}
       disabled={disabled || busy}
       onPress={onPress}
