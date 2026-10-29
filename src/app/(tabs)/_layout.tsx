@@ -135,6 +135,7 @@ export default function TabLayout() {
                     minHeight: 44,
                     justifyContent: "center",
                     gap: 3,
+                    paddingRight: 24,
                   }}
                 >
                   <Text
@@ -157,9 +158,15 @@ export default function TabLayout() {
                       ? " " + location.pinCode
                       : ""}{" "}
                   </Text>
+                  <View
+                    pointerEvents="none"
+                    style={{ position: "absolute", right: 0 }}
+                  >
+                    <Icon name="chevronDown" size={16} color={colors.muted} />
+                  </View>
                 </Pressable>
               </Link>
-              <Icon name="chevronDown" size={16} color={colors.muted} />
+
               <Link href="/(tabs)/account" asChild>
                 <Pressable
                   accessibilityRole="button"

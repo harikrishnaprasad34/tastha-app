@@ -17,7 +17,7 @@ interface OccasionsResponse {
 
 /**
  * The website has separate public endpoints for its CMS-backed homepage.
- * The mobile app must use those same endpoints, not /home/discovery (404).
+ * The mobile app must use those same endpoints, with discovery preferred and independent endpoints as recovery.
  * Independent sections can load despite one optional endpoint failing.
  */
 export async function loadStorefrontHome(
@@ -29,7 +29,7 @@ export async function loadStorefrontHome(
   try {
     const home = await api.request<Discovery>(
       "/home/discovery?deliveryPinCode=" + pin,
-      { signal },
+      { signal, timeout: 30000 },
     );
     if (
       !Array.isArray(home.sections) ||
@@ -39,25 +39,35 @@ export async function loadStorefrontHome(
       throw Error("The storefront response is incomplete. Please retry.");
     return home;
   } catch (error) {
-    if (!(error instanceof ApiError) || error.status !== 404) throw error;
+    // Recover read-only public content after transient failures, never after
+    // cancellation or an authorization/validation rejection.
+    if (signal?.aborted) throw error;
+    if (
+      !(error instanceof ApiError) ||
+      ![0, 404, 408, 500, 502, 503, 504].includes(error.status)
+    )
+      throw error;
   }
   const requests = [
     api.request<BannersResponse>("/home/banners?deliveryPinCode=" + pin, {
       signal,
+      timeout: 30000,
     }),
     api.request<CategoriesResponse>("/home/categories?deliveryPinCode=" + pin, {
       signal,
+      timeout: 30000,
     }),
     api.request<ProductsResponse>(
       "/home/trending?limit=6&deliveryPinCode=" + pin,
-      { signal },
+      { signal, timeout: 30000 },
     ),
     api.request<ProductsResponse>(
       "/home/new-arrivals?limit=6&deliveryPinCode=" + pin,
-      { signal },
+      { signal, timeout: 30000 },
     ),
     api.request<OccasionsResponse>("/home/occasions?deliveryPinCode=" + pin, {
       signal,
+      timeout: 30000,
     }),
   ] as const;
   const results = await Promise.allSettled(requests);
